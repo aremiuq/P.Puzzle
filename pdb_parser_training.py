@@ -63,6 +63,37 @@ def Get_Chains(pdb_file):
 
     return interaction
 
-A=Get_Chains("./example1/pair_his3_sc_XA.pdb")
+def Parse_List(list):
+    """Apply the Get_Chain to all the list and returns a relationship dictionary
+
+    Relationship dictionary:
+    -Keys = str with chain_name
+    -Values = set of chains with relathionship with the key one
+    """
+
+    RelationDict = {}
+
+    for pdb_file in list:
+
+        chains = Get_Chains(pdb_file)
+
+        iterative_chains = chains.copy()
+
+        for letter in iterative_chains:
+
+            if letter in RelationDict:
+                RelationDict[letter].add(chains[1])
+            else:
+                RelationDict[letter] = set([chains[1]])
+
+            chains = chains[::-1] #reverse the order of the chains
+
+    return RelationDict
+
+
+
+
+
+A=Parse_List(["./example1/pair_his3_sc_XA.pdb","./example1/pair_his3_sc_XB.pdb"])
 
 print(A)
