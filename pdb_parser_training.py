@@ -1,4 +1,7 @@
 import Bio.PDB as pdb
+from Bio import pairwise2
+#from Bio.SubsMat.MatrixInfo import blosum62
+from Bio.pairwise2 import format_alignment
 
 import os
 
@@ -103,6 +106,60 @@ def Delete_Folder(folder):
         return False
 
     return True
+
+
+
+def get_alignment(file_1, file_2):
+    pdb_parser = pdb.PDBParser(PERMISSIVE=True, QUIET=True)
+    structure_1 = pdb_parser.get_structure("file_1", file_1)
+    structure_2 = pdb_parser.get_structure("file_2", file_2)
+
+
+#################################
+##Extract Sequence from structure
+#################################
+##first, you must extract the polypeptides -- using alpha carbons here
+## ppb = PPBuilder() for c-n distances
+##second, we will extract the sequence
+    seq = []
+    ppb = pdb.CaPPBuilder()
+    for polypeptide in ppb.build_peptides(structure_1):
+        sequence_ref = polypeptide.get_sequence()
+        seq.append(sequence_ref)
+    for polypeptide in ppb.build_peptides(structure_2):
+        sequence_sample = polypeptide.get_sequence()
+        seq.append(sequence_sample)
+    return seq
+    
+#################################
+##Align sequences
+#################################
+##now we have sequences from two structures
+##next, let's globally align them 
+    align = pairwise2.align.globalxx(sequence_ref, sequence_sample)
+##format_alignment to get pretty print 
+    #print(format_alignment(*align[0]))
+
+ 
+def superimpose(file_1, file_2):
+#################################
+##Superimpose objects
+#################################
+    pdb_parser = pdb.PDBParser(PERMISSIVE=True, QUIET=True)
+    structure_1 = pdb_parser.get_structure("file_1", file_1)
+    structure_2 = pdb_parser.get_structure("file_2", file_2)
+##retrieve list of atoms here for each structure 
+    structure1_atoms = list(structure_1.get_atoms())
+    structure2_atoms = list(structure_2.get_atoms())
+##apply superimposer tool 
+    sup = pdb.Superimposer()
+
+
+##set both lists of atoms here to get rmsd  
+    sup.set_atoms(structure1_atoms, structure2_atoms)
+    #return "RMSD: " + str(sup.rms)
+    return str(sup.rotran)
+
 
 
 
