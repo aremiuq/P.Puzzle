@@ -4,6 +4,7 @@ from Bio import pairwise2
 from Bio.pairwise2 import format_alignment
 
 import os
+import copy as cp
 
 def Check_folder(folder):
     """If folder don't exists creates it in the actual path"""
@@ -107,6 +108,56 @@ def Delete_Folder(folder):
 
     return True
 
+def Superimpose_Chain(pairs, interaction, target, reference):
+    """Superimpose two chains with the same length and returns rotation/translation tuple
+
+    Input:
+    pair = Pairs dictionary for extract chain objects
+    interaction = String with two chain names related between them
+    target = string chain name of the common chain
+    reference = chain object used as reference
+    """
+
+    fixed_atoms = list(reference.get_atoms())
+    mobile_atoms = list(pairs[interaction][target].get_atoms())
+
+    sup = pdb.Superimposer()#apply superimposer tool
+    sup.set_atoms(fixed_atoms, mobile_atoms)#set both lists of atoms here to get rotation
+    rotran = sup.rotran
+
+    mobile_chain_name = interaction.replace(target,"",1)
+
+    mobile_chain = cp.deepcopy(pairs[interaction][mobile_chain_name])
+
+    for residue in mobile_chain:
+        for atom in residue:
+            atom.transform(rotran[0],rotran[1])
+
+    return mobile_chain
+
+def Collision_Check(model,addition,radius):
+    """Return a list of tuple containing the residue id interacting and the coordinates in conflict
+
+    input:
+    -model = structure object take as reference for the collitions
+    -addition = structure object beig us to check against the model
+    -radius = integrer required for become the empty radious (Amstrongs) around each atom
+    """
+
+    model_atom_list = list(residue["CA"] for residue in model)
+    addition_atom_list = list(residue["CA"] for residue in addition)
+
+    model_ns = pdb.NeighborSearch(model_atom_list)
+
+    collinsions_list=[]
+    for atom in addition_atom_list:
+        collision_list = model_ns.search(atom.get_coord(),radius,"R")
+        collinsions_list.extend([tuple([str(atom.get_parent().get_id()[1]),str(x.get_id()[1]),str(atom.get_coord())]) for x in collision_list])
+
+    return collinsions_list
+
+#def Join_piece(model,addition):
+
 
 
 def get_alignment(file_1, file_2):
@@ -130,35 +181,17 @@ def get_alignment(file_1, file_2):
         sequence_sample = polypeptide.get_sequence()
         seq.append(sequence_sample)
     return seq
-    
+
 #################################
 ##Align sequences
 #################################
 ##now we have sequences from two structures
-##next, let's globally align them 
+##next, let's globally align them
     align = pairwise2.align.globalxx(sequence_ref, sequence_sample)
-##format_alignment to get pretty print 
+##format_alignment to get pretty print
     #print(format_alignment(*align[0]))
 
- 
-def superimpose(file_1, file_2):
-#################################
-##Superimpose objects
-#################################
-    pdb_parser = pdb.PDBParser(PERMISSIVE=True, QUIET=True)
-    structure_1 = pdb_parser.get_structure("file_1", file_1)
-    structure_2 = pdb_parser.get_structure("file_2", file_2)
-##retrieve list of atoms here for each structure 
-    structure1_atoms = list(structure_1.get_atoms())
-    structure2_atoms = list(structure_2.get_atoms())
-##apply superimposer tool 
-    sup = pdb.Superimposer()
 
-
-##set both lists of atoms here to get rmsd  
-    sup.set_atoms(structure1_atoms, structure2_atoms)
-    #return "RMSD: " + str(sup.rms)
-    return str(sup.rotran)
 
 
 
@@ -166,8 +199,12 @@ def superimpose(file_1, file_2):
 
 A,B=Parse_List(["../example1/pair_his3_sc_XA.pdb","../example1/pair_his3_sc_XB.pdb"])
 
-print(A)
-print(B)
+print(B["XA"]["A"][1]["CA"].get_coord())
+
+print(Superimpose_Chain(B,"XA","X",B["XB"]["X"])[1]["CA"].get_coord())
+
+print(Collision_Check(B["XA"]["X"],B["XB"]["X"],8))
+
 
 # def Separate_Chains(pdb_file):
 #     """Separate the two chains and return their name in a list"""
