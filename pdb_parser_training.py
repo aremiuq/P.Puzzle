@@ -90,9 +90,9 @@ def Get_Chains(pdb_file,pairs):
 
     pdb_parser = pdb.PDBParser(PERMISSIVE=True, QUIET=True)
 
-    pdb_structure = pdb_parser.get_structure("pdb_file", pdb_file)
-
     interaction = pdb_file[:-4].split("_")[-1] # Obtain str with the interaction from the file name, the order of the letters need match with the order in the pdb file(format= something_chains.pdb)
+
+    pdb_structure = pdb_parser.get_structure(interaction, pdb_file)
 
     if len(interaction) != 2 or interaction in pairs or interaction[::-1] in pairs: #if the length is not true or the pair already exists, something goes wrong
         return error
@@ -185,18 +185,20 @@ def Collision_Check(model_atom_list,addition_atom_list,radius):
 
     return collinsions_list
 
-def Superimpose_Chain(reference, interaction, target, pairs, radius = 7, collisions_accepted = 0):
+def Superimpose_Chain(reference, interaction, target, pairs, radius, collisions_accepted):
     """Superimpose two chains with the same length and returns the related chain object moved accordingly
 
     Input:
-    reference = chain object used as reference
-    interaction = String with two chain names related between them
-    target = string chain name of the common chain
-    pairs = Pairs dictionary:
+    -reference = chain object used as reference
+    -interaction = String with two chain names related between them
+    -target = string chain name of the common chain
+    -pairs = Pairs dictionary:
     -Keys = interaction pair
     -Values = dictionary:
       -Keys = Chain name
       -Values = Chain object
+    -radius = integrer required for become the empty radious (Amstrongs) around each atom
+    -collisions_accepted = number of atom collisions allowed in each join
     """
 
     fixed_atoms = list(reference.get_atoms())
@@ -221,15 +223,15 @@ def Superimpose_Chain(reference, interaction, target, pairs, radius = 7, collisi
     collisions = Collision_Check(model_atom_list, addition_atom_list, radius)
 
     if len(collisions) > collisions_accepted:
-        return error
+        return None #error
     else:
         return mobile_chain
 
-def Join_Piece(model,addition):
+def Join_Piece(model,addition,available_chain_names):
     """Return the chain "addition" object added to the model
 
     input:
-    -model = chain object containg the current model
+    -model = model object containg the current model
     -addition = chain object moved acording a refernce chain superimposed
     -radius = integrer required for become the empty radious (Amstrongs) around each atom
     -collisions_accepted = number of atom collisions allowed in each join
@@ -237,12 +239,12 @@ def Join_Piece(model,addition):
     character = available_chain_names.pop()#Check before run this function if the set is empty
     addition.id = character
 
-    model.get_parent().add(addition)
+    model.add(addition)
 
-    return model.get_parent()[character]
+    return model, character, available_chain_names
 
 def Simulate_Model(simulation_list,relations):
-    """Returns the chain with less required steps expected for build a macrocomplex with all the chains without clashes
+    """Returns a string with the chain with less required steps expected for build a macrocomplex with all the chains without clashes
 
     The chain with obtain earlier all the posible chains, whas chosen as initial chian.
     if more than one chain fullfill this condition or more than one chain are the last to fill the maximum number of chains, one of them are piked at random.
@@ -256,30 +258,29 @@ def Simulate_Model(simulation_list,relations):
     possible_simulations = []
     completed_simulations = set()
 
-    while len(completed_simulations) == 0:
-        for simulation in simulation_list:
-            last_added_chains = "".join(list("".join("".join(relations[chains]) for chains in simulation[1])))
-            new_simulation = (simulation[0],last_added_chains,simulation[2] + last_added_chains)
-            if all(chain in relations.keys() for chain in new_simulation[2]):
-                completed_simulations.add(new_simulation[0])
-            else:
-                if new_simulation <= len(string.ascii_letters + string.digits):
-                    possible_simulations.append(new_simulation)
-
-        if len(completed_simulations) == 0:
-
-            if len(possible_simulations) == 0:
-                possible_starts = set(chain[0] for chain in simulation_list)
-                return possible_starts.pop()
-            else:
-                return Simulate_Model(possible_simulations,relations)
+    for simulation in simulation_list:
+        last_added_chains = "".join(list("".join("".join(relations[chains]) for chains in simulation[1])))
+        new_simulation = (simulation[0],last_added_chains,simulation[2] + last_added_chains)
+        if all(chain in new_simulation[2] for chain in relations.keys()):
+            completed_simulations.add(new_simulation[0])
         else:
-            possible_starts = set(chain[0] for chain in completed_simulations)
+            if len(new_simulation[2]) <= len(string.ascii_letters + string.digits):
+                possible_simulations.append(new_simulation)
+
+    if len(completed_simulations) == 0:
+
+        if len(possible_simulations) == 0:
+            possible_starts = set(chain[0] for chain in simulation_list)
             return possible_starts.pop()
+        else:
+            return Simulate_Model(possible_simulations,relations)
+    else:
+        possible_starts = set(chain[0] for chain in completed_simulations)
+        return possible_starts.pop()
 
 
 
-def Chose_Start(relationships,pairs):
+def Chose_Start(relationships, pairs, available_chain_names):
     """Returns a starting chain name and their respective chain object with their center of mass in the (0,0,0) coordinates
 
     For chose a starting point, we pick the chain/s with less relathionships making the hipotesis than will be able of make the correct macrocomplex with less steps.
@@ -294,13 +295,14 @@ def Chose_Start(relationships,pairs):
      -Values = dictionary:
       -Keys = Chain name
       -Values = Chain object
+    -available_chain_names = set with the avaiable names for the chains in the pdb format
     """
 
     all_chains = relationships.keys()#Not required but put here as a note
 
     less_related = list(key for key,val in relationships.items() if len(val) == min((len(val) for val in relationships.values())))
 
-    if len(less_related) == 1:
+    if len(less_related) != 1:
 
         less_related_simulation = []
 
@@ -316,11 +318,14 @@ def Chose_Start(relationships,pairs):
     chain_object = set()
 
     for chains in pairs.values():
-        for object in chains.values():
-            if object.get_id() == starting_chain:
-                chain_object.add(object)
+        for key,value in chains.items():
+            if key == starting_chain:
+                chain_object.add(value)
 
     starting_chain_object = chain_object.pop()
+
+    character = available_chain_names.pop()#Check before run this function if the set is empty
+    starting_chain_object.id = character
 
     coordinates_list = []
 
@@ -331,91 +336,163 @@ def Chose_Start(relationships,pairs):
     coordinates_array = np.array(coordinates_list)
     center_of_masses = np.mean(coordinates_array,axis=0,dtype=np.float64)
 
-    initial_model = cp.deepcopy(starting_chain_object)
-    for residue in initial_model:
-        for atom in residue:
-            atom.coord = atom.get_vector()-center_of_masses
+    initial_model = cp.deepcopy(starting_chain_object).get_parent()
+    initial_model.get_parent().id = "model_1"
 
-    character = available_chain_names.pop()#Check before run this function if the set is empty
-    initial_model.id = character
+    for atom in initial_model.get_atoms():#center the chain in the point (0,0,0)
+        new_coords = atom.get_vector()-center_of_masses
+        atom.coord = new_coords.get_array()
 
-    return starting_chain, initial_model
+    return tuple((initial_model,[(starting_chain, character)], available_chain_names))
 
-def Merge_chains(candidates, model, collisions_accepted = 0):
-    """
+def Merge_chains(candidates, model, available_chain_names, collisions_accepted, radius):
+    """Returns all the possible combinations as a list of models, of the model and the candidates
 
     Input:
-    -candidates = 
+    -candidates = list of tuples with: (chain_object,chain_name) structure
+    -model = model object for join the candidates to them
+
+    Output:
+    -resulting_models = list of tuples with (model_object, (chain_name,chain_id), set(avaiable_names))
 
     """
 
-    posible_results = {}
+    posible_results = {} #This become a dictionary containg the templates of the resulting models
     for number in range(len(candidates)):
         posible_results[number] = tuple(range(len(candidates)))
+
+    print(posible_results)
 
     i = 0
     while i < len(candidates)-1:
         for key in range(i+1,len(candidates)):
-            reference_atom_list = list(candidates[i].get_atoms())
-            mobile_atom_list = list(candidates[key].get_atoms())
-            collisions = Collision_Check(reference_atom_list, mobile_atom_list,radius = 7)
-            if len(collisions) > collisions_accepted:
+            reference_atom_list = list(candidates[i][0].get_atoms())
+            mobile_atom_list = list(candidates[key][0].get_atoms())
+            collisions = Collision_Check(reference_atom_list, mobile_atom_list,radius)
+            if len(collisions) > collisions_accepted:#extract the collition pair from the posible results
                 posible_results[i] = tuple(chain for chain in posible_results[i] if chain != key)
-                posible_results[key] = tuple(chain for chain in posible_results[i] if chain != i)
+                posible_results[key] = tuple(chain for chain in posible_results[key] if chain != i)
+
+        i += 1
 
     results = set(posible_results.values()) #This set merge the diferent possibilities for each chain, equal models results in the same entry.
 
-    models = []
-
+    resulting_models = []
     for combination in results:
-        for chain in combination:
-            models.append(Join_Piece(model,candidates[chain]))
+        if len(available_chain_names) < len(combination):
+            return error #return combination and branch for example
+        else:
+            added_chains = []
+            merged_model = cp.deepcopy(model)
+            merged_avaiable_chain_names = cp.deepcopy(available_chain_names)
+            for number in combination:
+                candidate_copied = cp.deepcopy(candidates[number][0])
+                merged_model, chain_name, merged_available_chain_names = Join_Piece(merged_model, candidate_copied, merged_avaiable_chain_names)
+                added_chains.append(((candidates[number][1]), chain_name))#tupple containing (chain_name,random_name_gived)
 
+            resulting_models.append((merged_model, added_chains, merged_available_chain_names))
 
+    print(resulting_models)
 
-def Build_Model(starting_chain, initial_model, relathionships, pairs):
-    """
+    return resulting_models #This output contains a list of tuples with (model_object,list of tuples with : (chain_name,chain_id) of the last added chains, set(avaiable_names))
+
+def Check_Chains(model_tupled, relationships, pairs, radius, collisions_accepted):
+    """Return the matching chains of one model
 
     Input:
-    -starting_chain = str with the name of the model chain
-    -initial_model = chain object with their center of mass at origin
+    -model_tupled = tuple with (model_object, list of tuples with : (chain_name,chain_id), set(avaiable_names))
+    -relationships = Relationship dictionary:
+     -Keys = str with chain_name
+     -Values = set of chains with relathionship with the key one
+    -pairs = Chain objects dictionary:
+     -Keys = interaction pair
+     -Values = dictionary:
+      -Keys = Chain name
+      -Values = Chain object
+    Output:
+    -possible_additions: list of tuples with the following format: (Chain_object,chain_name)
     """
 
-    relations = tuple(chain for chain in relathionships[starting_chain])
+    print("Check_chains")
     possible_additions = []
-    for chain in relations:#obtain the matching pieces
+    for element in model_tupled[1]:
+        relations = tuple(chain for chain in relationships[element[0]])
+        for chain in relations:#obtain the matching pieces
+            interaction = list(pair for pair in pairs if chain in pair and element[0] in pair)[0]
+            addition_tested = (Superimpose_Chain(model_tupled[0][element[1]], interaction, element[0], pairs, radius, collisions_accepted),chain)
+            if addition_tested[0] != None:
+                possible_additions.append(addition_tested)
 
-        interaction = list(pair for pair in pairs if chain in pair and starting_chain in pair)[0]
+    if len(possible_additions) == 0:
+        return None
+    else:
+        return possible_additions
 
 
-        possible_additions.append((Superimpose_Chain(initial_model, interaction, starting_chain, pairs),chain))
+def Build_model(model_tupled, relationships, pairs, collisions_accepted = 0, radius = 7):
+    """Returns a list of tuples of all the possible models taking in account the given restrictions.
 
+    Input:
+    -model_tupled = Tuple with (model_object, (chain_name,chain_id), set(avaiable_names))
 
+    """
 
-    if len(initial_model.get_parent().get_list()) == len(string.ascii_letters + string.digits):
-        return model
-
-
-
+    finished_models = []
+    pieces_for_merge = Check_Chains(model_tupled, relationships, pairs, radius, collisions_accepted)
+    if pieces_for_merge == None:
+        finished_models.append(model_tupled)
+    else:
+        resulting_models = Merge_chains(pieces_for_merge, model_tupled[0], model_tupled[2], collisions_accepted, radius)
+        for resulting_model in resulting_models:
+            if len(resulting_model[2]) == 0:
+                finished_models.extend(resulting_model)
+            else:
+                finished_models.extend(Build_model(resulting_model, relationships, pairs))
+    return finished_models
 
 
 
 if __name__ == "__main__":
 
-    A,B=Parse_List(["../example1/pair_his3_sc_XA.pdb","../example1/pair_his3_sc_XB.pdb"])
+    print("Program start")
 
-    print(B["XA"]["A"][1]["CA"].get_coord())
+    onlyfiles = list(os.path.join("../example1",f)for f in os.listdir("../example1") if os.path.isfile(os.path.join("../example1", f)))
 
-    print(Superimpose_Chain(B,"XA","X",B["XB"]["X"])[1]["CA"].get_coord())
+    A,B=Parse_List(onlyfiles)
 
-    # print(Collision_Check(B["XA"]["X"],B["XB"]["X"],8))
+    print("files_parsed")
 
-    C = Join_Piece(B["XB"]["X"],B["XB"]["B"])
+    initial_model = Chose_Start(A,B,available_chain_names)
 
-    for chain in C.get_parent():
-        print (chain)
+    models = Build_model(initial_model, A, B)
 
-    print(Chose_Start(A,B))
+    print("write pdb")
+
+    print(models)
+
+
+    io = pdb.PDBIO()
+    for model in models:
+        io.set_structure(model[0])
+        io.save("%s.pdb" %(model[0].get_parent().get_id()))
+
+
+
+    # print(B["XA"]["A"][1]["CA"].get_coord())
+
+    # print(Superimpose_Chain(B,"XA","X",B["XB"]["X"])[1]["CA"].get_coord())
+
+    # # print(Collision_Check(B["XA"]["X"],B["XB"]["X"],8))
+
+    # C = Join_Piece(B["XB"]["X"],B["XB"]["B"])
+
+    # for chain in C.get_parent():
+    #     print (chain)
+
+    # print(Chose_Start(A,B))
+
+
+
 
 
 # def get_alignment(file_1, file_2):
