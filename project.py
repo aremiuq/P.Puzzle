@@ -14,27 +14,66 @@ import string
 
 
 
-
 pdb_parser = pdb.PDBParser(PERMISSIVE=True, QUIET=True)
-m1 = pdb_parser.get_structure("m1", "../example1/test.pdb")
-m2 = pdb_parser.get_structure("m2", "../example1/pair_his3_sc_XA.pdb.chainB.pdb")
+structure1 = pdb_parser.get_structure("structure1", "../example1/test.pdb")
+structure2 = pdb_parser.get_structure("structure2", "../example1/pair_his3_sc_XA.pdb.chainB.pdb")
 
-def get_fasta_alignment2(m1, m2):
+chain1 = structure1.get_chains()
+chain2 = structure2.get_chains()
+
+
+
+def check_residues_resnames(chain1, chain2):
+    """
+    input = chain1, chain2
+    output = dictionary with key of (residue_chain_1, residue_chain_2)
+    from these chains, we get the residues and residue names
+    first check and see if residue names between chains are equal
+        if equal then return output
+    second, if residue names between chains are not equal and if the tuple is not in dictionary
+        do pairwise align, structural align, and add to dictionary 
+        return dictionary 
+    
+    """
+    residue_chain_1 = chain1.get_residues()
+    residue_chain_2 = chain2.get_residues()
+    resnames_chain_1 = residue_chain_1.get_resname()
+    resnames_chain_2 = residue_chain_2.get_resname()
+
+    if resnames_chain_1 == resnames_chain_2:
+        return dict[(residues_chain_1, residues_chain_2)]  #superimpose
+
+    if resnames_chain_1 != resnames_chain_2:
+        if (residues_chain_1,residues_chain_2) not in dict:
+            align = get_fasta_alignment2(residue_chain_1, residue_chain_2)
+            stuct_align = align_structure(align, residue_chain_1, residue_chain_2)
+            dict[(residue_chain_1,residue_chain_2)] = relations_1
+            dict[(residue_chain_2,residue_chain_1)] = relations_2
+        
+        return dict[(residues_chain_1, residues_chain_2)]
+
+
+def get_pairwise_alignment(m1, m2):
+    """
+    input = model1 and model2
+    output = pairwise alignment
+    first, build peptides and get sequence for model1 and model2 
+    then, do a pairwise global alignment of both sequences 
+    """
     ppb = pdb.CaPPBuilder()
     for polypeptide in ppb.build_peptides(m1):
         sequence_ref = polypeptide.get_sequence()
     for polypeptide in ppb.build_peptides(m2):
         sequence_sample = polypeptide.get_sequence()
     align = pairwise2.align.globalxx(sequence_ref, sequence_sample)
-    return list(align[0])
-    for ref, sample, score, begin, end in align:
-        reference_string=str(ref)
-        sample_string=str(sample)
-        filename = "alignment_ref_sample.fasta"
-        with open(filename, "w") as handle:
-            fasta_file = handle.write(">A\n%s\n>B\n%s\n" % (ref, sample))
-            #print (fasta_file)
-
+    return align
+    #for ref, sample, score, begin, end in align:
+     #   reference_string=str(ref)
+      #  sample_string=str(sample)
+       # filename = "alignment_ref_sample.fasta"
+       # with open(filename, "w") as handle:
+        #    fasta_file = handle.write(">A\n%s\n>B\n%s\n" % (ref, sample))
+         #   print (fasta_file)
 
 
 class StructureAlignment (object):
@@ -104,41 +143,31 @@ class StructureAlignment (object):
         """Create an iterator over all residue pairs."""
         for i in range(0, len(self.residue_pairs)):
             yield self.residue_pairs[i]
-    
 
-
-
-
-
-
-
-
-def pairwise (residue, interaction1, interaction2, pairs):
-        A=get_fasta_alignment2(m1,m2)
-        alignment_map = StructureAlignment(A,m1,m2).get_maps()
-        first_map = (alignment_map[0])
-        second_map = (alignment_map[1])
+    def remove_nones (map12, map21):
+        """
+        input = map12, map21 
+        output = new_map12, new_map21
+        here I want to remove all keys from both maps where the value = None
+        a filter is created to remove nones, the original maps are cleared, updated, and renamed 
+        """
         #return len(second_map) 
         #filter map 1
-        filter_m1_none = {k: v for k,v in first_map.items() if v is not None}
-        first_map.clear()
-        first_map.update(filter_m1_none)
+        filter_m1_none = {k: v for k,v in map12.items() if v is not None}
+        map12.clear()
+        new_map12 = map12.update(filter_m1_none)
         #return len(first_map)
         #filter map 2
-        filter_m2_none = {k: v for k,v in second_map.items() if v is not None}
-        second_map.clear()
-        second_map.update(filter_m2_none)
+        filter_m2_none = {k: v for k,v in map21.items() if v is not None}
+        map21.clear()
+        new_map21 = map21.update(filter_m2_none)
         #return len(second_map)
+        return new_map12, new_map21
 
-        
-        if (residue,interaction2) in pairs[interaction1]:
-            pairs[interaction2][(residue, interaction1)] = second_map
-            pairs[interaction1][(residue, interaction2)] = first_map
-            return pairs
-      
-pairwise = pairwise("P", "AX", "AB", {'AX': {'A': 'object', 'X': 'object', ('P', 'AB'): "relationship"}, 'AB': {'A': 'object', 'B': 'object'}})
-print(pairwise)
 
+#pairwise = pairwise("P", "AX", "AB", {'AX': {'A': 'object', 'X': 'object', ('P', 'AB'): "relationship"}, 'AB': {'A': 'object', 'B': 'object'}})
+#print(pairwise)
+#print (check_residues_resnames)
 
 #A=get_fasta_alignment2(m1,m2)
 #print(A)
@@ -148,6 +177,9 @@ print(pairwise)
 #print((aligment_map[1]))
 #print(len(aligment_2))
 #print(list(aligment_m1_map.keys())[0].get_id())
+
+
+
 
 
 
