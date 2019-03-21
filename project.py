@@ -16,7 +16,7 @@ import string
 
 
 pdb_parser = pdb.PDBParser(PERMISSIVE=True, QUIET=True)
-m1 = pdb_parser.get_structure("m1", "../example1/pair_his3_sc_XB.pdb.chainA.pdb")
+m1 = pdb_parser.get_structure("m1", "../example1/test.pdb")
 m2 = pdb_parser.get_structure("m2", "../example1/pair_his3_sc_XA.pdb.chainB.pdb")
 
 def get_fasta_alignment2(m1, m2):
@@ -34,6 +34,8 @@ def get_fasta_alignment2(m1, m2):
         with open(filename, "w") as handle:
             fasta_file = handle.write(">A\n%s\n>B\n%s\n" % (ref, sample))
             #print (fasta_file)
+
+
 
 class StructureAlignment (object):
     from Bio.Data import SCOPData
@@ -102,23 +104,53 @@ class StructureAlignment (object):
         """Create an iterator over all residue pairs."""
         for i in range(0, len(self.residue_pairs)):
             yield self.residue_pairs[i]
+    
 
 
 
-A=get_fasta_alignment2(m1,m2)
-print(A)
-print(A[0][1])
-aligment = StructureAlignment(A,m1,m2).get_maps()
-aligment_1 = aligment[0]
-aligment_2 = aligment[1]
-print(len(aligment_1))
-print(len(aligment_2))
-print(list(aligment_1.keys())[0])
 
-a_list=[]
-b_list = []
-for key,value in aligment_1.items():
-    if value != None:
-        a_list.append(key)
-        b_list.append(value)
-print(a_list[0])
+
+
+
+
+def pairwise (residue, interaction1, interaction2, pairs):
+        A=get_fasta_alignment2(m1,m2)
+        alignment_map = StructureAlignment(A,m1,m2).get_maps()
+        first_map = (alignment_map[0])
+        second_map = (alignment_map[1])
+        #return len(second_map) 
+        #filter map 1
+        filter_m1_none = {k: v for k,v in first_map.items() if v is not None}
+        first_map.clear()
+        first_map.update(filter_m1_none)
+        #return len(first_map)
+        #filter map 2
+        filter_m2_none = {k: v for k,v in second_map.items() if v is not None}
+        second_map.clear()
+        second_map.update(filter_m2_none)
+        #return len(second_map)
+
+        
+        if (residue,interaction2) in pairs[interaction1]:
+            pairs[interaction2][(residue, interaction1)] = second_map
+            pairs[interaction1][(residue, interaction2)] = first_map
+            return pairs
+      
+pairwise = pairwise("P", "AX", "AB", {'AX': {'A': 'object', 'X': 'object', ('P', 'AB'): "relationship"}, 'AB': {'A': 'object', 'B': 'object'}})
+print(pairwise)
+
+
+#A=get_fasta_alignment2(m1,m2)
+#print(A)
+#print(A[0][1])
+#aligment_map = StructureAlignment(A,m1,m2).get_maps()
+#print((aligment_map[0]))
+#print((aligment_map[1]))
+#print(len(aligment_2))
+#print(list(aligment_m1_map.keys())[0].get_id())
+
+
+
+
+
+
