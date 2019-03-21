@@ -7,6 +7,8 @@ import os
 import copy as cp
 import string
 import numpy as np
+import itertools
+import pickle
 
 available_chain_names = set(string.ascii_letters + string.digits)
 
@@ -167,7 +169,7 @@ def Delete_Folder(folder):
 
     return True
 
-def Collision_Check(model_atom_list,addition_atom_list,radius):
+def Collision_Check(model_atom_list,addition_atom_list, radius):
     """Return a list of tuple containing the residue id interacting and the coordinates in conflict
 
     input:
@@ -178,14 +180,14 @@ def Collision_Check(model_atom_list,addition_atom_list,radius):
 
     model_ns = pdb.NeighborSearch(model_atom_list)
 
-    collinsions_list=[]
+    collisions_list=[]
     for atom in addition_atom_list:
         collision_list = model_ns.search(atom.get_coord(),radius,"R")
-        collinsions_list.extend([tuple([str(atom.get_parent().get_id()[1]),str(x.get_id()[1]),str(atom.get_coord())]) for x in collision_list])
+        collisions_list.extend([tuple([str(atom.get_parent().get_id()[1]),str(x.get_id()[1]),str(atom.get_coord())]) for x in collision_list])
 
-    return collinsions_list
+    return collisions_list
 
-def Superimpose_Chain(reference, interaction, target, pairs, radius, collisions_accepted):
+def Superimpose_Chain(reference, interaction, target, pairs, collisions_accepted, radius):
     """Superimpose two chains with the same length and returns the related chain object moved accordingly
 
     Input:
@@ -207,8 +209,9 @@ def Superimpose_Chain(reference, interaction, target, pairs, radius, collisions_
     sup = pdb.Superimposer()#apply superimposer tool
     sup.set_atoms(fixed_atoms, mobile_atoms)#set both lists of atoms here to get rotation
     rotran = sup.rotran
+    print(rotran)
 
-    mobile_chain_name = interaction.replace(target,"",1)
+    mobile_chain_name = interaction.replace(target,"",1)# Obtain the chain name of the mobile one
 
     mobile_chain = cp.deepcopy(pairs[interaction][mobile_chain_name])
 
@@ -222,6 +225,12 @@ def Superimpose_Chain(reference, interaction, target, pairs, radius, collisions_
 
     collisions = Collision_Check(model_atom_list, addition_atom_list, radius)
 
+    if len(collisions) > 0 :
+        print(collisions[0])
+        print(len(collisions))
+        print(mobile_chain)
+        print(collisions_accepted)
+
     if len(collisions) > collisions_accepted:
         return None #error
     else:
@@ -233,8 +242,6 @@ def Join_Piece(model,addition,available_chain_names):
     input:
     -model = model object containg the current model
     -addition = chain object moved acording a refernce chain superimposed
-    -radius = integrer required for become the empty radious (Amstrongs) around each atom
-    -collisions_accepted = number of atom collisions allowed in each join
     """
     character = available_chain_names.pop()#Check before run this function if the set is empty
     addition.id = character
@@ -323,80 +330,100 @@ def Chose_Start(relationships, pairs, available_chain_names):
                 chain_object.add(value)
 
     starting_chain_object = chain_object.pop()
+    initial_chian = cp.deepcopy(starting_chain_object)
+    character = available_chain_names.pop()
+    initial_chian.id = character
+    initial_model = initial_chian.get_parent()
+    initial_model.get_parent().id = "my_model"
 
-    character = available_chain_names.pop()#Check before run this function if the set is empty
-    starting_chain_object.id = character
+    # coordinates_list = []
 
-    coordinates_list = []
+    # for residue in starting_chain_object:
+    #     for atom in residue:
+    #         coordinates_list.append(atom.get_coord())
 
-    for residue in starting_chain_object:
-        for atom in residue:
-            coordinates_list.append(atom.get_coord())
+    # coordinates_array = np.array(coordinates_list)
+    # center_of_masses = np.mean(coordinates_array,axis=0,dtype=np.float64)
 
-    coordinates_array = np.array(coordinates_list)
-    center_of_masses = np.mean(coordinates_array,axis=0,dtype=np.float64)
-
-    initial_model = cp.deepcopy(starting_chain_object).get_parent()
-    initial_model.get_parent().id = "model_1"
-
-    for atom in initial_model.get_atoms():#center the chain in the point (0,0,0)
-        new_coords = atom.get_vector()-center_of_masses
-        atom.coord = new_coords.get_array()
+    # for atom in initial_model.get_atoms():#center the chain in the point (0,0,0)
+    #     new_coords = atom.get_vector()-center_of_masses
+    #     atom.coord = new_coords.get_array()
 
     return tuple((initial_model,[(starting_chain, character)], available_chain_names))
 
-def Merge_chains(candidates, model, available_chain_names, collisions_accepted, radius):
+def Merge_chains(candidates, model_object, available_chain_names, collisions_accepted, radius):
     """Returns all the possible combinations as a list of models, of the model and the candidates
 
     Input:
     -candidates = list of tuples with: (chain_object,chain_name) structure
-    -model = model object for join the candidates to them
+    -model_object = model object, for join the candidates to them
 
     Output:
     -resulting_models = list of tuples with (model_object, (chain_name,chain_id), set(avaiable_names))
 
     """
 
-    posible_results = {} #This become a dictionary containg the templates of the resulting models
+    print("Merge_Chains")
+    print(candidates)
+    print(len(candidates))
+
+    possible_results = set() #This become a dictionary containg the templates of the resulting models
     for number in range(len(candidates)):
-        posible_results[number] = tuple(range(len(candidates)))
+        possible_results.add((number,tuple(range(len(candidates)))))
 
-    print(posible_results)
+    for first,second in itertools.combinations(tuple(range(len(candidates))),2):
 
-    i = 0
-    while i < len(candidates)-1:
-        for key in range(i+1,len(candidates)):
-            reference_atom_list = list(candidates[i][0].get_atoms())
-            mobile_atom_list = list(candidates[key][0].get_atoms())
-            collisions = Collision_Check(reference_atom_list, mobile_atom_list,radius)
-            if len(collisions) > collisions_accepted:#extract the collition pair from the posible results
-                posible_results[i] = tuple(chain for chain in posible_results[i] if chain != key)
-                posible_results[key] = tuple(chain for chain in posible_results[key] if chain != i)
+        reference_atom_list = list(candidates[first][0].get_atoms())
+        mobile_atom_list = list(candidates[second][0].get_atoms())
+        collisions = Collision_Check(reference_atom_list, mobile_atom_list, radius)
+        print(len(collisions))
+        if len(collisions) > collisions_accepted:#extract the collition pair from the posible results
+            new_possible_results = set()
+            for model in possible_results:
+                if model[0] == first:
+                    new_possible_results.add((first,tuple(chain for chain in model[1] if chain != second)))
+                elif model[1] == second:
+                    new_possible_results.add((second,tuple(chain for chain in model[1] if chain != first)))
+                else:
+                    new_possible_results.add((model[0],tuple(chain for chain in model[1] if chain != first)))
+                    new_possible_results.add((model[0],tuple(chain for chain in model[1] if chain != second)))
+            possible_results = new_possible_results
 
-        i += 1
+    possible_results_unrepeated = set([tuple(element[1]) for element in possible_results]) #remove repeated combinations
+    results_unprocesed = [set(element) for element in possible_results_unrepeated] #format for remove combinations with more possibilities
+    results = cp.deepcopy(results_unprocesed)
+    for result_1, result_2 in itertools.permutations(results_unprocesed,2):
+        if result_1.issubset(result_2):
+            if result_1 in results:
+                results.remove(result_1)
 
-    results = set(posible_results.values()) #This set merge the diferent possibilities for each chain, equal models results in the same entry.
+    print("Possibilities finded, procesing...")
+    print(len(results))
 
     resulting_models = []
     for combination in results:
+        print("Combination %s"%(combination))
         if len(available_chain_names) < len(combination):
             return error #return combination and branch for example
         else:
             added_chains = []
-            merged_model = cp.deepcopy(model)
+            merged_model = cp.deepcopy(model_object)
             merged_avaiable_chain_names = cp.deepcopy(available_chain_names)
             for number in combination:
+                print ("%s started"%(number))
                 candidate_copied = cp.deepcopy(candidates[number][0])
                 merged_model, chain_name, merged_available_chain_names = Join_Piece(merged_model, candidate_copied, merged_avaiable_chain_names)
                 added_chains.append(((candidates[number][1]), chain_name))#tupple containing (chain_name,random_name_gived)
 
             resulting_models.append((merged_model, added_chains, merged_available_chain_names))
 
+    print("Resulting models")
     print(resulting_models)
+    print(len(resulting_models))
 
     return resulting_models #This output contains a list of tuples with (model_object,list of tuples with : (chain_name,chain_id) of the last added chains, set(avaiable_names))
 
-def Check_Chains(model_tupled, relationships, pairs, radius, collisions_accepted):
+def Check_Chains(model_tupled, relationships, pairs, collisions_accepted, radius):
     """Return the matching chains of one model
 
     Input:
@@ -414,18 +441,25 @@ def Check_Chains(model_tupled, relationships, pairs, radius, collisions_accepted
     """
 
     print("Check_chains")
+    print(model_tupled)
     possible_additions = []
     for element in model_tupled[1]:
         relations = tuple(chain for chain in relationships[element[0]])
+        print (relations)
+        print(len(relations))
         for chain in relations:#obtain the matching pieces
             interaction = list(pair for pair in pairs if chain in pair and element[0] in pair)[0]
-            addition_tested = (Superimpose_Chain(model_tupled[0][element[1]], interaction, element[0], pairs, radius, collisions_accepted),chain)
+            addition_tested = (Superimpose_Chain(model_tupled[0][element[1]], interaction, element[0], pairs, collisions_accepted, radius),chain)
+            print(addition_tested)
             if addition_tested[0] != None:
                 possible_additions.append(addition_tested)
 
     if len(possible_additions) == 0:
+        print(None)
         return None
     else:
+        print("output chains")
+        print(len(possible_additions))
         return possible_additions
 
 
@@ -437,8 +471,11 @@ def Build_model(model_tupled, relationships, pairs, collisions_accepted = 0, rad
 
     """
 
+    print("Build_model")
+    print(collisions_accepted)
+
     finished_models = []
-    pieces_for_merge = Check_Chains(model_tupled, relationships, pairs, radius, collisions_accepted)
+    pieces_for_merge = Check_Chains(model_tupled, relationships, pairs, collisions_accepted, radius)
     if pieces_for_merge == None:
         finished_models.append(model_tupled)
     else:
@@ -447,7 +484,7 @@ def Build_model(model_tupled, relationships, pairs, collisions_accepted = 0, rad
             if len(resulting_model[2]) == 0:
                 finished_models.extend(resulting_model)
             else:
-                finished_models.extend(Build_model(resulting_model, relationships, pairs))
+                finished_models.extend(Build_model(resulting_model, relationships, pairs, collisions_accepted, radius))
     return finished_models
 
 
@@ -456,15 +493,25 @@ if __name__ == "__main__":
 
     print("Program start")
 
-    onlyfiles = list(os.path.join("../example1",f)for f in os.listdir("../example1") if os.path.isfile(os.path.join("../example1", f)))
-
-    A,B=Parse_List(onlyfiles)
+    try:
+        A = pickle.load(open("relationships.p","rb"))
+        B = pickle.load(open("pairs.p","rb"))
+    except:
+        onlyfiles = list(os.path.join("../example1",f)for f in os.listdir("../example1") if os.path.isfile(os.path.join("../example1", f)))
+        A,B=Parse_List(onlyfiles)
+        out_fd = open("relationships.p","wb")
+        pickle.dump(A,out_fd)
+        out_fd.close()
+        out_fd = open("pairs.p","wb")
+        pickle.dump(B,out_fd)
+        out_fd.close()
 
     print("files_parsed")
+    print(len(A.keys()))
 
     initial_model = Chose_Start(A,B,available_chain_names)
 
-    models = Build_model(initial_model, A, B)
+    models = Build_model(initial_model, A, B, 30, 1.5)
 
     print("write pdb")
 
@@ -472,9 +519,11 @@ if __name__ == "__main__":
 
 
     io = pdb.PDBIO()
+    i = 1
     for model in models:
         io.set_structure(model[0])
-        io.save("%s.pdb" %(model[0].get_parent().get_id()))
+        io.save("model_%s.pdb" %(i))
+        i += 1
 
 
 
@@ -490,39 +539,3 @@ if __name__ == "__main__":
     #     print (chain)
 
     # print(Chose_Start(A,B))
-
-
-
-
-
-# def get_alignment(file_1, file_2):
-#     pdb_parser = pdb.PDBParser(PERMISSIVE=True, QUIET=True)
-#     structure_1 = pdb_parser.get_structure("file_1", file_1)
-#     structure_2 = pdb_parser.get_structure("file_2", file_2)
-
-
-# #################################
-# ##Extract Sequence from structure
-# #################################
-# ##first, you must extract the polypeptides -- using alpha carbons here
-# ## ppb = PPBuilder() for c-n distances
-# ##second, we will extract the sequence
-#     seq = []
-#     ppb = pdb.CaPPBuilder()
-#     for polypeptide in ppb.build_peptides(structure_1):
-#         sequence_ref = polypeptide.get_sequence()
-#         seq.append(sequence_ref)
-#     for polypeptide in ppb.build_peptides(structure_2):
-#         sequence_sample = polypeptide.get_sequence()
-#         seq.append(sequence_sample)
-#     return seq
-
-# #################################
-# ##Align sequences
-# #################################
-# ##now we have sequences from two structures
-# ##next, let's globally align them
-#     align = pairwise2.align.globalxx(sequence_ref, sequence_sample)
-# ##format_alignment to get pretty print
-#     #print(format_alignment(*align[0]))
-
