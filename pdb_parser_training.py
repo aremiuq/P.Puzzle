@@ -9,8 +9,10 @@ import string
 import numpy as np
 import itertools
 import pickle
+from project import *
 
 available_chain_names = set(string.ascii_letters + string.digits)
+similarity = {}
 
 def Check_folder(folder):
     """If folder don't exists creates it in the actual path"""
@@ -203,13 +205,11 @@ def Superimpose_Chain(reference, interaction, target, pairs, collisions_accepted
     -collisions_accepted = number of atom collisions allowed in each join
     """
 
-    fixed_atoms = list(reference.get_atoms())
-    mobile_atoms = list(pairs[interaction][target].get_atoms())
+    fixed_atoms, mobile_atoms = Check_Similarity(reference, pairs[interaction][target])
 
     sup = pdb.Superimposer()#apply superimposer tool
     sup.set_atoms(fixed_atoms, mobile_atoms)#set both lists of atoms here to get rotation
     rotran = sup.rotran
-    print(rotran)
 
     mobile_chain_name = interaction.replace(target,"",1)# Obtain the chain name of the mobile one
 
@@ -228,8 +228,6 @@ def Superimpose_Chain(reference, interaction, target, pairs, collisions_accepted
     if len(collisions) > 0 :
         print(collisions[0])
         print(len(collisions))
-        print(mobile_chain)
-        print(collisions_accepted)
 
     if len(collisions) > collisions_accepted:
         return None #error
@@ -336,18 +334,18 @@ def Chose_Start(relationships, pairs, available_chain_names):
     initial_model = initial_chian.get_parent()
     initial_model.get_parent().id = "my_model"
 
-    # coordinates_list = []
+    coordinates_list = []
 
-    # for residue in starting_chain_object:
-    #     for atom in residue:
-    #         coordinates_list.append(atom.get_coord())
+    for residue in starting_chain_object:
+        for atom in residue:
+            coordinates_list.append(atom.get_coord())
 
-    # coordinates_array = np.array(coordinates_list)
-    # center_of_masses = np.mean(coordinates_array,axis=0,dtype=np.float64)
+    coordinates_array = np.array(coordinates_list)
+    center_of_masses = np.mean(coordinates_array,axis=0,dtype=np.float64)
 
-    # for atom in initial_model.get_atoms():#center the chain in the point (0,0,0)
-    #     new_coords = atom.get_vector()-center_of_masses
-    #     atom.coord = new_coords.get_array()
+    for atom in initial_model.get_atoms():#center the chain in the point (0,0,0)
+        new_coords = atom.get_vector()-center_of_masses
+        atom.coord = new_coords.get_array()
 
     return tuple((initial_model,[(starting_chain, character)], available_chain_names))
 
@@ -418,7 +416,6 @@ def Merge_chains(candidates, model_object, available_chain_names, collisions_acc
             resulting_models.append((merged_model, added_chains, merged_available_chain_names))
 
     print("Resulting models")
-    print(resulting_models)
     print(len(resulting_models))
 
     return resulting_models #This output contains a list of tuples with (model_object,list of tuples with : (chain_name,chain_id) of the last added chains, set(avaiable_names))
@@ -441,7 +438,6 @@ def Check_Chains(model_tupled, relationships, pairs, collisions_accepted, radius
     """
 
     print("Check_chains")
-    print(model_tupled)
     possible_additions = []
     for element in model_tupled[1]:
         relations = tuple(chain for chain in relationships[element[0]])
@@ -450,12 +446,10 @@ def Check_Chains(model_tupled, relationships, pairs, collisions_accepted, radius
         for chain in relations:#obtain the matching pieces
             interaction = list(pair for pair in pairs if chain in pair and element[0] in pair)[0]
             addition_tested = (Superimpose_Chain(model_tupled[0][element[1]], interaction, element[0], pairs, collisions_accepted, radius),chain)
-            print(addition_tested)
             if addition_tested[0] != None:
                 possible_additions.append(addition_tested)
 
     if len(possible_additions) == 0:
-        print(None)
         return None
     else:
         print("output chains")
@@ -472,7 +466,6 @@ def Build_model(model_tupled, relationships, pairs, collisions_accepted = 0, rad
     """
 
     print("Build_model")
-    print(collisions_accepted)
 
     finished_models = []
     pieces_for_merge = Check_Chains(model_tupled, relationships, pairs, collisions_accepted, radius)
@@ -511,7 +504,7 @@ if __name__ == "__main__":
 
     initial_model = Chose_Start(A,B,available_chain_names)
 
-    models = Build_model(initial_model, A, B, 30, 1.5)
+    models = Build_model(initial_model, A, B, 30, 2.5)
 
     print("write pdb")
 

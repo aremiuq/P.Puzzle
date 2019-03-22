@@ -11,69 +11,7 @@ from Bio.pairwise2 import format_alignment
 import os
 import copy as cp
 import string
-
-
-
-pdb_parser = pdb.PDBParser(PERMISSIVE=True, QUIET=True)
-structure1 = pdb_parser.get_structure("structure1", "../example1/test.pdb")
-structure2 = pdb_parser.get_structure("structure2", "../example1/pair_his3_sc_XA.pdb.chainB.pdb")
-
-chain1 = structure1.get_chains()
-chain2 = structure2.get_chains()
-
-
-
-def check_residues_resnames(chain1, chain2):
-    """
-    input = chain1, chain2
-    output = dictionary with key of (residue_chain_1, residue_chain_2)
-    from these chains, we get the residues and residue names
-    first check and see if residue names between chains are equal
-        if equal then return output
-    second, if residue names between chains are not equal and if the tuple is not in dictionary
-        do pairwise align, structural align, and add to dictionary 
-        return dictionary 
-    
-    """
-    residue_chain_1 = chain1.get_residues()
-    residue_chain_2 = chain2.get_residues()
-    resnames_chain_1 = residue_chain_1.get_resname()
-    resnames_chain_2 = residue_chain_2.get_resname()
-
-    if resnames_chain_1 == resnames_chain_2:
-        return dict[(residues_chain_1, residues_chain_2)]  #superimpose
-
-    if resnames_chain_1 != resnames_chain_2:
-        if (residues_chain_1,residues_chain_2) not in dict:
-            align = get_fasta_alignment2(residue_chain_1, residue_chain_2)
-            stuct_align = align_structure(align, residue_chain_1, residue_chain_2)
-            dict[(residue_chain_1,residue_chain_2)] = relations_1
-            dict[(residue_chain_2,residue_chain_1)] = relations_2
-        
-        return dict[(residues_chain_1, residues_chain_2)]
-
-
-def get_pairwise_alignment(m1, m2):
-    """
-    input = model1 and model2
-    output = pairwise alignment
-    first, build peptides and get sequence for model1 and model2 
-    then, do a pairwise global alignment of both sequences 
-    """
-    ppb = pdb.CaPPBuilder()
-    for polypeptide in ppb.build_peptides(m1):
-        sequence_ref = polypeptide.get_sequence()
-    for polypeptide in ppb.build_peptides(m2):
-        sequence_sample = polypeptide.get_sequence()
-    align = pairwise2.align.globalxx(sequence_ref, sequence_sample)
-    return align
-    #for ref, sample, score, begin, end in align:
-     #   reference_string=str(ref)
-      #  sample_string=str(sample)
-       # filename = "alignment_ref_sample.fasta"
-       # with open(filename, "w") as handle:
-        #    fasta_file = handle.write(">A\n%s\n>B\n%s\n" % (ref, sample))
-         #   print (fasta_file)
+import itertools
 
 
 class StructureAlignment (object):
@@ -144,26 +82,113 @@ class StructureAlignment (object):
         for i in range(0, len(self.residue_pairs)):
             yield self.residue_pairs[i]
 
-    def remove_nones (map12, map21):
-        """
-        input = map12, map21 
+    def without_nones (self):
+        """Return the maps without the none values.
+
+        Input = map12, map21
         output = new_map12, new_map21
         here I want to remove all keys from both maps where the value = None
-        a filter is created to remove nones, the original maps are cleared, updated, and renamed 
+        a filter is created to remove nones, the original maps are cleared, updated, and renamed
         """
-        #return len(second_map) 
+
         #filter map 1
-        filter_m1_none = {k: v for k,v in map12.items() if v is not None}
-        map12.clear()
-        new_map12 = map12.update(filter_m1_none)
-        #return len(first_map)
+        new_map12 = {k: v for k,v in self.map12.items() if v is not None}
         #filter map 2
-        filter_m2_none = {k: v for k,v in map21.items() if v is not None}
-        map21.clear()
-        new_map21 = map21.update(filter_m2_none)
-        #return len(second_map)
+        new_map21 = {k: v for k,v in self.map21.items() if v is not None}
         return new_map12, new_map21
 
+def Get_Pairwise(m1, m2):
+    """
+    input = model1 and model2
+    output = pairwise alignment
+    first, build peptides and get sequence for model1 and model2
+    then, do a pairwise global alignment of both sequences
+    """
+    ppb = pdb.CaPPBuilder()
+    for polypeptide in ppb.build_peptides(m1):
+        sequence_ref = polypeptide.get_sequence()
+    for polypeptide in ppb.build_peptides(m2):
+        sequence_sample = polypeptide.get_sequence()
+    align = pairwise2.align.globalxx(sequence_ref, sequence_sample)
+    max_pair = max(align,key = lambda x:x[2])
+    return max_pair
+    #for ref, sample, score, begin, end in align:
+     #   reference_string=str(ref)
+      #  sample_string=str(sample)
+       # filename = "alignment_ref_sample.fasta"
+       # with open(filename, "w") as handle:
+        #    fasta_file = handle.write(">A\n%s\n>B\n%s\n" % (ref, sample))
+         #   print (fasta_file)
+
+
+def Check_Similarity(chain1, chain2, percent = 95):
+    """
+    input = chain1, chain2
+    output = dictionary with key of (residue_chain_1, residue_chain_2)
+    from these chains, we get the residues and residue names
+    first check and see if residue names between chains are equal
+        if equal then return output
+    second, if residue names between chains are not equal and if the tuple is not in dictionary
+        do pairwise align, structural align, and add to dictionary
+        return dictionary
+
+    """
+    residue_chain_1 = chain1.get_residues()
+    residue_chain_1, residue_chain_1_copy = itertools.tee(residue_chain_1)
+    residue_chain_2 = chain2.get_residues()
+    residue_chain_2, residue_chain_2_copy = itertools.tee(residue_chain_2)
+
+    resnames_chain_1 = []
+    for residue in residue_chain_1:
+        resnames_chain_1.append(residue.get_resname())
+    resnames_chain_1 = tuple(resnames_chain_1)
+    resnames_chain_2 = []
+    for residue in residue_chain_2:
+        resnames_chain_2.append(residue.get_resname())
+    resnames_chain_2 = tuple(resnames_chain_2)
+
+    if resnames_chain_1 != resnames_chain_2:
+        if (resnames_chain_1,resnames_chain_2) not in similiarity:
+            align = get_pairwise_alignment(chain1, chain2)
+            sim_percent = (align[2]/align[4]) * 100
+            if sim_percent <= percent:
+                return None
+            relations_1, relations_2 = StructureAlignment(align, chain1, chain2).without_nones()
+            similiarity[(resnames_chain_1,resnames_chain_2)] = relations_1
+            similiarity[(resnames_chain_2,resnames_chain_1)] = relations_2
+
+        id_list_1 = [residue.get_id() for residue in similiarity[(resnames_chain_1, resnames_chain_2)].keys()]
+        atom_list_1 = []
+        for id in id_list_1:
+            atom_list_1.extend(chain1[id].get_atoms())
+
+        id_list_2 = [residue.get_id() for residue in similiarity[(resnames_chain_2, resnames_chain_1)].values()]
+        atom_list_2 = []
+        for id in id_list_2:
+            atom_list_2.extend(chain2[id].get_atoms())
+    else:
+        atom_list_1 = []
+        for residue in residue_chain_1_copy:
+            atom_list_1.extend(residue.get_atoms())
+        atom_list_2 = []
+        for residue in residue_chain_2_copy:
+            atom_list_2.extend(residue.get_atoms())
+
+    return atom_list_1, atom_list_2
+
+if __name__ == "__main__":
+
+    pdb_parser = pdb.PDBParser(PERMISSIVE=True, QUIET=True)
+    structure1 = pdb_parser.get_structure("structure1", "../example3/chain_X.pdb")
+    structure2 = pdb_parser.get_structure("structure2", "../example3/chain_X_similar.pdb")
+
+    similarity = {}
+    for chain in structure1.get_chains():
+        chain1 = chain
+        for chain in structure2.get_chains():
+            chain2 = chain
+
+    print(check_residues_resnames(chain1, chain2, similarity))
 
 #pairwise = pairwise("P", "AX", "AB", {'AX': {'A': 'object', 'X': 'object', ('P', 'AB'): "relationship"}, 'AB': {'A': 'object', 'B': 'object'}})
 #print(pairwise)
@@ -177,12 +202,3 @@ class StructureAlignment (object):
 #print((aligment_map[1]))
 #print(len(aligment_2))
 #print(list(aligment_m1_map.keys())[0].get_id())
-
-
-
-
-
-
-
-
-
