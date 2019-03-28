@@ -10,9 +10,10 @@ import numpy as np
 import itertools
 import pickle
 from project import *
+import settings
 
-available_chain_names = set(string.ascii_letters + string.digits)
-similarity = {}
+available_chain_names = list(string.ascii_uppercase + string.ascii_lowercase + string.digits)
+available_chain_names.reverse()
 
 def Check_folder(folder):
     """If folder don't exists creates it in the actual path"""
@@ -95,10 +96,11 @@ def Get_Chains(pdb_file,pairs):
     pdb_parser = pdb.PDBParser(PERMISSIVE=True, QUIET=True)
 
     interaction = pdb_file[:-4].split("_")[-1] # Obtain str with the interaction from the file name, the order of the letters need match with the order in the pdb file(format= something_chains.pdb)
-
+    # interaction = pdb_file[:-4].split("/")[-1]
     pdb_structure = pdb_parser.get_structure(interaction, pdb_file)
 
-    if len(interaction) != 2 or interaction in pairs or interaction[::-1] in pairs: #if the length is not true or the pair already exists, something goes wrong
+    print(interaction)
+    if len(interaction) != 2 or interaction in pairs: #if the length is not true or the pair already exists, something goes wrong
         return error
 
     pair = {}
@@ -219,14 +221,13 @@ def Superimpose_Chain(reference, interaction, target, pairs, collisions_accepted
 
     model_atom_list = []
     for chain in reference.get_parent():
-        model_atom_list.extend(list(residue["CA"] for residue in chain))
+        model_atom_list.extend(chain.get_atoms())
 
-    addition_atom_list = list(residue["CA"] for residue in mobile_chain)
+    addition_atom_list = list(mobile_chain.get_atoms())
 
     collisions = Collision_Check(model_atom_list, addition_atom_list, radius)
 
     if len(collisions) > 0 :
-        print(collisions[0])
         print(len(collisions))
 
     if len(collisions) > collisions_accepted:
@@ -367,15 +368,25 @@ def Merge_chains(candidates, model_object, available_chain_names, collisions_acc
 
     possible_results = set() #This become a dictionary containg the templates of the resulting models
     for number in range(len(candidates)):
-        possible_results.add((number,tuple(range(len(candidates)))))
+        possible_results.add((number,tuple(range(len(candidates)))))#format example in the case of 4 candidates {(0,(0123))}
 
     for first,second in itertools.combinations(tuple(range(len(candidates))),2):
 
         reference_atom_list = list(candidates[first][0].get_atoms())
         mobile_atom_list = list(candidates[second][0].get_atoms())
         collisions = Collision_Check(reference_atom_list, mobile_atom_list, radius)
-        print(len(collisions))
         if len(collisions) > collisions_accepted:#extract the collition pair from the posible results
+            print(len(collisions))
+            print(len(mobile_atom_list))
+            print(len(reference_atom_list))
+
+            if len(collisions) >= len(reference_atom_list):#Remove the candidate if is equal
+                repeated_removed = set()
+                for model in possible_results:
+                    if model[0] != second:
+                        repeated_removed.add((model[0],tuple(chain for chain in model[1] if chain != second)))
+                        possible_results = repeated_removed
+
             new_possible_results = set()
             for model in possible_results:
                 if model[0] == first:
@@ -396,6 +407,7 @@ def Merge_chains(candidates, model_object, available_chain_names, collisions_acc
                 results.remove(result_1)
 
     print("Possibilities finded, procesing...")
+    print(results)
     print(len(results))
 
     resulting_models = []
@@ -444,8 +456,11 @@ def Check_Chains(model_tupled, relationships, pairs, collisions_accepted, radius
         print (relations)
         print(len(relations))
         for chain in relations:#obtain the matching pieces
-            interaction = list(pair for pair in pairs if chain in pair and element[0] in pair)[0]
+            interaction = element[0] + chain
+            if not interaction in pairs:#if both orders dosn't exist
+                interaction = list(pair for pair in pairs if chain in pair and element[0] in pair)[0]
             addition_tested = (Superimpose_Chain(model_tupled[0][element[1]], interaction, element[0], pairs, collisions_accepted, radius),chain)
+            print(addition_tested)
             if addition_tested[0] != None:
                 possible_additions.append(addition_tested)
 
@@ -485,12 +500,14 @@ def Build_model(model_tupled, relationships, pairs, collisions_accepted = 0, rad
 if __name__ == "__main__":
 
     print("Program start")
+    settings.init()
+    folder = "../example_generator/capsid_virus"
 
     try:
         A = pickle.load(open("relationships.p","rb"))
         B = pickle.load(open("pairs.p","rb"))
     except:
-        onlyfiles = list(os.path.join("../example1",f)for f in os.listdir("../example1") if os.path.isfile(os.path.join("../example1", f)))
+        onlyfiles = list(os.path.join(folder,f) for f in os.listdir(folder) if os.path.isfile(os.path.join(folder, f)))
         A,B=Parse_List(onlyfiles)
         out_fd = open("relationships.p","wb")
         pickle.dump(A,out_fd)
@@ -521,6 +538,8 @@ if __name__ == "__main__":
 
 
     # print(B["XA"]["A"][1]["CA"].get_coord())
+    print(settings.similarity)
+    print(settings.similarity)
 
     # print(Superimpose_Chain(B,"XA","X",B["XB"]["X"])[1]["CA"].get_coord())
 

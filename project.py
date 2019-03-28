@@ -12,6 +12,7 @@ import os
 import copy as cp
 import string
 import itertools
+import settings
 
 
 class StructureAlignment (object):
@@ -133,6 +134,7 @@ def Check_Similarity(chain1, chain2, percent = 95):
         return dictionary
 
     """
+
     residue_chain_1 = chain1.get_residues()
     residue_chain_1, residue_chain_1_copy = itertools.tee(residue_chain_1)
     residue_chain_2 = chain2.get_residues()
@@ -148,24 +150,34 @@ def Check_Similarity(chain1, chain2, percent = 95):
     resnames_chain_2 = tuple(resnames_chain_2)
 
     if resnames_chain_1 != resnames_chain_2:
-        if (resnames_chain_1,resnames_chain_2) not in similiarity:
-            align = get_pairwise_alignment(chain1, chain2)
+        if (resnames_chain_1,resnames_chain_2) not in settings.similarity:
+            align = Get_Pairwise(chain1, chain2)
             sim_percent = (align[2]/align[4]) * 100
             if sim_percent <= percent:
                 return None
             relations_1, relations_2 = StructureAlignment(align, chain1, chain2).without_nones()
-            similiarity[(resnames_chain_1,resnames_chain_2)] = relations_1
-            similiarity[(resnames_chain_2,resnames_chain_1)] = relations_2
+            print(len(relations_1))
+            print(len(relations_2))
+            settings.similarity[(resnames_chain_1,resnames_chain_2)] = relations_1
+            settings.similarity[(resnames_chain_2,resnames_chain_1)] = relations_2
 
-        id_list_1 = [residue.get_id() for residue in similiarity[(resnames_chain_1, resnames_chain_2)].keys()]
+        id_list_1 = [residue.get_id() for residue in settings.similarity[(resnames_chain_1, resnames_chain_2)].keys()]
+        print(len(id_list_1))
         atom_list_1 = []
         for id in id_list_1:
-            atom_list_1.extend(chain1[id].get_atoms())
+            if "CA" in chain1[id]:
+                atom_list_1.append(chain1[id]["CA"])
+            else:
+                atom_list_1.append(chain1[id]["C4'"])
 
-        id_list_2 = [residue.get_id() for residue in similiarity[(resnames_chain_2, resnames_chain_1)].values()]
+        id_list_2 = [residue.get_id() for residue in settings.similarity[(resnames_chain_2, resnames_chain_1)].values()]
+        print(len(id_list_2))
         atom_list_2 = []
         for id in id_list_2:
-            atom_list_2.extend(chain2[id].get_atoms())
+            if "CA" in chain2[id]:
+                atom_list_2.append(chain2[id]["CA"])
+            else:
+                atom_list_2.append(chain2[id]["C4'"])
     else:
         atom_list_1 = []
         for residue in residue_chain_1_copy:
@@ -173,6 +185,9 @@ def Check_Similarity(chain1, chain2, percent = 95):
         atom_list_2 = []
         for residue in residue_chain_2_copy:
             atom_list_2.extend(residue.get_atoms())
+
+    print(len(atom_list_1))
+    print(len(atom_list_2))
 
     return atom_list_1, atom_list_2
 
@@ -182,13 +197,12 @@ if __name__ == "__main__":
     structure1 = pdb_parser.get_structure("structure1", "../example3/chain_X.pdb")
     structure2 = pdb_parser.get_structure("structure2", "../example3/chain_X_similar.pdb")
 
-    similarity = {}
     for chain in structure1.get_chains():
         chain1 = chain
         for chain in structure2.get_chains():
             chain2 = chain
 
-    print(check_residues_resnames(chain1, chain2, similarity))
+    print(check_residues_resnames(chain1, chain2, settings.similarity))
 
 #pairwise = pairwise("P", "AX", "AB", {'AX': {'A': 'object', 'X': 'object', ('P', 'AB'): "relationship"}, 'AB': {'A': 'object', 'B': 'object'}})
 #print(pairwise)
