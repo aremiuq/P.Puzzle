@@ -30,7 +30,7 @@ class RepeatedChain(Exception):
         self.collisions = collisions
 
     def __str__(self):
-        return "Collision appen when %s is added to %s" %(self.mobile_chain, self.fixed_chain)
+        return "The number of collisions were greater than the threshold entered when %s is added to %s" %(self.mobile_chain, self.fixed_chain)
 
-    def Get_Collisions:
-        return collisions
+    def Get_Collisions(self):
+        return self.collisions

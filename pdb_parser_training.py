@@ -50,9 +50,7 @@ def Separate_Chains(pdb_file):
 
     if len(interaction) != 2: #if the length is not true, something goes wrong
 
-        return error
-
-    i=0
+        print(settings.IncorrectName(interaction))
 
     for model in pdb_structure:
         for chain in model:
@@ -76,8 +74,6 @@ def Separate_Chains(pdb_file):
 
             io.save(file_name, chain())
 
-            i += 1
-
     return interaction
 
 def Get_Chains(pdb_file,pairs):
@@ -100,8 +96,11 @@ def Get_Chains(pdb_file,pairs):
     pdb_structure = pdb_parser.get_structure(interaction, pdb_file)
 
     print(interaction)
-    if len(interaction) != 2 or interaction in pairs: #if the length is not true or the pair already exists, something goes wrong
-        return error
+    if len(interaction) != 2:
+        print(settings.IncorrectName(interaction))
+        exit()
+    if interaction in pairs:
+        print(settings.RepeatedChain(interaction))
 
     pair = {}
 
@@ -162,13 +161,13 @@ def Delete_Folder(folder):
             if os.path.isfile(file_path):
                 os.unlink(file_path)
         except Exception as e:
-            print(e) #Error
+            print(e) #The error is printed for be able of know the reason of the problem
             return False
 
     try:
         os.rmdir(folder)
     except Exception as e:
-        print(e) #Error
+        print(e)
         return False
 
     return True
@@ -231,7 +230,10 @@ def Superimpose_Chain(reference, interaction, target, pairs, collisions_accepted
         print(len(collisions))
 
     if len(collisions) > collisions_accepted:
-        return None #error
+        e = settings.RepeatedChain(target, mobile_chain_name, collisions)
+        print(e)
+        print(e.Get_Collisions())
+        return None
     else:
         return mobile_chain
 
@@ -414,7 +416,10 @@ def Merge_chains(candidates, model_object, available_chain_names, collisions_acc
     for combination in results:
         print("Combination %s"%(combination))
         if len(available_chain_names) < len(combination):
-            return error #return combination and branch for example
+            print("Available chain names exausted, the following chains can't be added:")
+            for number in combination:
+                print(candidates[number])
+            resulting_models.append((model_object,None,set()))
         else:
             added_chains = []
             merged_model = cp.deepcopy(model_object)
@@ -501,7 +506,7 @@ if __name__ == "__main__":
 
     print("Program start")
     settings.init()
-    folder = "../example_generator/capsid_virus"
+    folder = "../example_generator/proteasome_example_gen2"
 
     try:
         A = pickle.load(open("relationships.p","rb"))
@@ -532,14 +537,12 @@ if __name__ == "__main__":
     i = 1
     for model in models:
         io.set_structure(model[0])
-        io.save("model_%s.pdb" %(i))
+        io.save("%s_model_%s.pdb" %(os.path.basename(folder),i))
         i += 1
 
 
 
     # print(B["XA"]["A"][1]["CA"].get_coord())
-    print(settings.similarity)
-    print(settings.similarity)
 
     # print(Superimpose_Chain(B,"XA","X",B["XB"]["X"])[1]["CA"].get_coord())
 

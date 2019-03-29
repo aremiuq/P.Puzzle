@@ -98,29 +98,25 @@ class StructureAlignment (object):
         new_map21 = {k: v for k,v in self.map21.items() if v is not None}
         return new_map12, new_map21
 
-def Get_Pairwise(m1, m2):
+def Get_Pairwise(m1, m2):#error handle different posible dictionaris
     """
     input = model1 and model2
     output = pairwise alignment
     first, build peptides and get sequence for model1 and model2
     then, do a pairwise global alignment of both sequences
     """
-    ppb = pdb.CaPPBuilder()
-    for polypeptide in ppb.build_peptides(m1):
-        sequence_ref = polypeptide.get_sequence()
-    for polypeptide in ppb.build_peptides(m2):
-        sequence_sample = polypeptide.get_sequence()
-    align = pairwise2.align.globalxx(sequence_ref, sequence_sample)
-    max_pair = max(align,key = lambda x:x[2])
-    return max_pair
-    #for ref, sample, score, begin, end in align:
-     #   reference_string=str(ref)
-      #  sample_string=str(sample)
-       # filename = "alignment_ref_sample.fasta"
-       # with open(filename, "w") as handle:
-        #    fasta_file = handle.write(">A\n%s\n>B\n%s\n" % (ref, sample))
-         #   print (fasta_file)
 
+    try:
+        ppb = pdb.CaPPBuilder()
+        for polypeptide in ppb.build_peptides(m1):
+            sequence_ref = polypeptide.get_sequence()
+        for polypeptide in ppb.build_peptides(m2):
+            sequence_sample = polypeptide.get_sequence()
+        align = pairwise2.align.globalxx(sequence_ref, sequence_sample)
+        max_pair = max(align,key = lambda x:x[2])
+        return max_pair
+    except UnboundLocalError:
+        return None
 
 def Check_Similarity(chain1, chain2, percent = 95):
     """
@@ -152,31 +148,36 @@ def Check_Similarity(chain1, chain2, percent = 95):
     if resnames_chain_1 != resnames_chain_2:
         if (resnames_chain_1,resnames_chain_2) not in settings.similarity:
             align = Get_Pairwise(chain1, chain2)
-            sim_percent = (align[2]/align[4]) * 100
+            try:
+                sim_percent = (align[2]/align[4]) * 100
+            except TypeError as e:
+                print("Diferent kinds of chains compared")
+                return None
             if sim_percent <= percent:
+                print("%s% of similarity between %s and %s"%(sim_percent, chain1.get_id(), chain1.get_id()))
                 return None
             relations_1, relations_2 = StructureAlignment(align, chain1, chain2).without_nones()
-            print(len(relations_1))
-            print(len(relations_2))
             settings.similarity[(resnames_chain_1,resnames_chain_2)] = relations_1
             settings.similarity[(resnames_chain_2,resnames_chain_1)] = relations_2
 
         id_list_1 = [residue.get_id() for residue in settings.similarity[(resnames_chain_1, resnames_chain_2)].keys()]
-        print(len(id_list_1))
         atom_list_1 = []
         for id in id_list_1:
             if "CA" in chain1[id]:
+                print("Residue atoms added")
                 atom_list_1.append(chain1[id]["CA"])
             else:
+                print("DNA/RNA atoms added")
                 atom_list_1.append(chain1[id]["C4'"])
 
         id_list_2 = [residue.get_id() for residue in settings.similarity[(resnames_chain_2, resnames_chain_1)].values()]
-        print(len(id_list_2))
         atom_list_2 = []
         for id in id_list_2:
             if "CA" in chain2[id]:
+                print("Residue atoms added")
                 atom_list_2.append(chain2[id]["CA"])
             else:
+                print("DNA/RNA atoms added")
                 atom_list_2.append(chain2[id]["C4'"])
     else:
         atom_list_1 = []
@@ -185,9 +186,6 @@ def Check_Similarity(chain1, chain2, percent = 95):
         atom_list_2 = []
         for residue in residue_chain_2_copy:
             atom_list_2.extend(residue.get_atoms())
-
-    print(len(atom_list_1))
-    print(len(atom_list_2))
 
     return atom_list_1, atom_list_2
 
