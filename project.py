@@ -19,14 +19,10 @@ class StructureAlignment (object):
     from Bio.Data import SCOPData
     def __init__(self, align, m1, m2):
         """Produces a structural alignment of two models
-
         Input:
         - fasta_align - Alignment object
         - m1, m2 - two models
         - si, sj - the sequences in the Alignment object that correspond to the structures
-        Output:
-        -newmap12,newmap21 = 
-
         """
         length = align[4]-align[3]
         # Get the residues in the models

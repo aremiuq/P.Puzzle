@@ -38,10 +38,8 @@ def Check_folder(folder):
 
 def Separate_Chains(pdb_file): 
     """Separate the two chains and return their name in a list
-
     Input: 
     -pdb file = target file 
-
     Output:
     -interaction = list with chain information
     """
@@ -90,7 +88,6 @@ def Get_Chains(pdb_file,pairs):
     Input:
     -pdb_file = target file to process
     -pairs = pairs dictionary to check if the interaction pair is already processed
-
     Output:
     -interaction = string containing the two chains interacting
     -pair = dictionary:
@@ -128,12 +125,10 @@ def Parse_List(list):
     """Apply the Get_Chain to all the list and returns a relationship and pairs dictionary
     Input:
     -list = pdb information
-
     Output:
     -Relationship dictionary:
         -Keys = str with chain_name
         -Values = set of chains with relathionship with the key one
-
     -Pairs dictionary:
        -Keys = interaction pair
         -Values = dictionary:
@@ -186,7 +181,6 @@ def Delete_Folder(folder):
 
 def Collision_Check(model_atom_list,addition_atom_list, radius):
     """Return a list of tuple containing the residue id interacting and the coordinates in conflict
-
     Input:
     -model = list of atoms take as reference for the collitions
     -addition = list of atoms being us to check against the model
@@ -206,7 +200,6 @@ def Collision_Check(model_atom_list,addition_atom_list, radius):
 
 def Superimpose_Chain(reference, interaction, target, pairs, collisions_accepted, radius, percent):
     """Superimpose two chains with the same length and returns the related chain object moved accordingly
-
     Input:
     -reference = chain object used as reference
     -interaction = String with two chain names related between them
@@ -219,7 +212,6 @@ def Superimpose_Chain(reference, interaction, target, pairs, collisions_accepted
     -radius = integrer required for become the empty radius (measure in Amstrongs) around each atom, user input
     -collisions_accepted = number of atom collisions allowed in each join, user input
     -percent = similarity percentage accepted, user input 
-
     Output:
     -mobile_chain = list of atoms from the mobile chain that have had their coordinates moved for superimposing
     """
@@ -257,11 +249,9 @@ def Superimpose_Chain(reference, interaction, target, pairs, collisions_accepted
 
 def Join_Piece(model,addition,available_chain_names):
     """Return the chain "addition" object added to the model
-
     Input:
     -model = model object containing the current model
     -addition = chain object moved acording a refernce chain superimposed
-
     Output:
     -model = model object containg the original model and addition
     -character = id of model being added
@@ -278,7 +268,6 @@ def Simulate_Model(simulation_list,relations):
     """Returns a string with the chain that has less required steps expected to build a macrocomplex with all the chains without clashes.
     The chain obtain earlier all the posible chains, whas chosen as initial chian.
     If more than one chain fulfills this condition or more than one chain are the last to fill the maximum number of chains, one of them are piked at random.
-    
     Input:
     -simulation_list = list of tuples with the following structure (initial_chain,last_added_chains,total_added_chains)
     -relations = relathionship dictionary:
@@ -317,7 +306,6 @@ def Chose_Start(relationships, pairs, available_chain_names, selected_chain = No
     """Returns a starting chain name and their respective chain object with their center of mass in the (0,0,0) coordinates
     To choose starting point, the program picks the chain/s with less relathionships making the hipotesis than will be able of make the correct macrocomplex with less steps.
     if more than one chain share the condition of have less relatihionships Simulate_Model function is applyed:
-
     Input:
     -relationships = Relationship dictionary:
         -Keys = str with chain_name
@@ -329,7 +317,6 @@ def Chose_Start(relationships, pairs, available_chain_names, selected_chain = No
             -Values = Chain object
     -available_chain_names = set with the avaiable names for the chains in the pdb format
     -selected_chain = optional, instead of use the simulation for guess the shortest past, introduce the name of the starting chain.
-
     Output:
     - tuple containing starting chain name, starting chain object, and center of mass coordinates 
     """
@@ -391,7 +378,6 @@ def Merge_chains(candidates, model_object, available_chain_names, collisions_acc
     -available_chain_names = set with the avaiable names for the chains in the pdb format
     -collisions_accepted = number of atom collisions allowed in each join, user input
     -radius = integrer required for become the empty radius (measure in Amstrongs) around each atom, user input
-    
     Output:
     -resulting_models = list of tuples with (model_object, (chain_name,chain_id), set(avaiable_names))
     """
