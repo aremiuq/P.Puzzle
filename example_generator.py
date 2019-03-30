@@ -104,7 +104,7 @@ def Create_Example2(pdb_file, folder, percent = 95):
                 new_model.add(model[chain_names[number]])
                 io = pdb.PDBIO()
                 io.set_structure(new_model)
-                io.save(os.path.join(folder, "%s_%s_%s%s.pdb" %(number, file_name, equivalence[interaction[0]], equivalence[interaction[1]])))
+                io.save(os.path.join(folder, "%s_%s%s.pdb" %(file_name, equivalence[interaction[0]], equivalence[interaction[1]])))
                 try:
                     interaction = chain_names[number] + chain_names[number + 1]
                     new_model = cp.deepcopy(empty_model)
@@ -112,7 +112,7 @@ def Create_Example2(pdb_file, folder, percent = 95):
                     new_model.add(model[chain_names[number + 1]])
                     io = pdb.PDBIO()
                     io.set_structure(new_model)
-                    io.save(os.path.join(folder, "%s.2_%s_%s%s.pdb" %(number, file_name, equivalence[interaction[0]], equivalence[interaction[1]])))
+                    io.save(os.path.join(folder, "%s_%s%s.pdb" %(file_name, equivalence[interaction[0]], equivalence[interaction[1]])))
                 except:
                     print("error")
                     pass

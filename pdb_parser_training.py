@@ -190,7 +190,7 @@ def Collision_Check(model_atom_list,addition_atom_list, radius):
 
     return collisions_list
 
-def Superimpose_Chain(reference, interaction, target, pairs, collisions_accepted, radius):
+def Superimpose_Chain(reference, interaction, target, pairs, collisions_accepted, radius, percent):
     """Superimpose two chains with the same length and returns the related chain object moved accordingly
 
     Input:
@@ -204,9 +204,10 @@ def Superimpose_Chain(reference, interaction, target, pairs, collisions_accepted
       -Values = Chain object
     -radius = integrer required for become the empty radious (Amstrongs) around each atom
     -collisions_accepted = number of atom collisions allowed in each join
+    -percent = similarity percentage accepted
     """
 
-    fixed_atoms, mobile_atoms = Check_Similarity(reference, pairs[interaction][target])
+    fixed_atoms, mobile_atoms = Check_Similarity(reference, pairs[interaction][target], percent)
 
     sup = pdb.Superimposer()#apply superimposer tool
     sup.set_atoms(fixed_atoms, mobile_atoms)#set both lists of atoms here to get rotation
@@ -230,9 +231,9 @@ def Superimpose_Chain(reference, interaction, target, pairs, collisions_accepted
         print(len(collisions))
 
     if len(collisions) > collisions_accepted:
-        e = settings.RepeatedChain(target, mobile_chain_name, collisions)
-        print(e)
-        print(e.Get_Collisions())
+        e = settings.CollisionAppears(target, mobile_chain_name, collisions)
+        settings.argprint(e.Get_Collisions(), verbose, quiet, 2)
+        settings.argprint(e.Get_Collisions(), verbose, quiet, 3)
         return None
     else:
         return mobile_chain
@@ -288,7 +289,7 @@ def Simulate_Model(simulation_list,relations):
 
 
 
-def Chose_Start(relationships, pairs, available_chain_names):
+def Chose_Start(relationships, pairs, available_chain_names, selected_chain = None):
     """Returns a starting chain name and their respective chain object with their center of mass in the (0,0,0) coordinates
 
     For chose a starting point, we pick the chain/s with less relathionships making the hipotesis than will be able of make the correct macrocomplex with less steps.
@@ -304,24 +305,28 @@ def Chose_Start(relationships, pairs, available_chain_names):
       -Keys = Chain name
       -Values = Chain object
     -available_chain_names = set with the avaiable names for the chains in the pdb format
+    -selected_chain = optional, instead of use the simulation for guess the shortest past, introduce the name of the starting chain.
     """
 
-    all_chains = relationships.keys()#Not required but put here as a note
+    if selected_chain is None:
+        all_chains = relationships.keys()#Not required but put here as a note
 
-    less_related = list(key for key,val in relationships.items() if len(val) == min((len(val) for val in relationships.values())))
+        less_related = list(key for key,val in relationships.items() if len(val) == min((len(val) for val in relationships.values())))
 
-    if len(less_related) != 1:
+        if len(less_related) != 1:
 
-        less_related_simulation = []
+            less_related_simulation = []
 
-        for chain in less_related: #This loop format the less related chains for the simulation
-            chain_simulation = (chain,chain,chain)
-            less_related_simulation.append(chain_simulation)
+            for chain in less_related: #This loop format the less related chains for the simulation
+                chain_simulation = (chain,chain,chain)
+                less_related_simulation.append(chain_simulation)
 
-        starting_chain = Simulate_Model(less_related_simulation,relationships)
+            starting_chain = Simulate_Model(less_related_simulation,relationships)
 
+        else:
+            starting_chain = less_related[0]
     else:
-        starting_chain = less_related[0]
+        starting_chain = selected_chain
 
     chain_object = set()
 
@@ -437,7 +442,7 @@ def Merge_chains(candidates, model_object, available_chain_names, collisions_acc
 
     return resulting_models #This output contains a list of tuples with (model_object,list of tuples with : (chain_name,chain_id) of the last added chains, set(avaiable_names))
 
-def Check_Chains(model_tupled, relationships, pairs, collisions_accepted, radius):
+def Check_Chains(model_tupled, relationships, pairs, collisions_accepted, radius, percent):
     """Return the matching chains of one model
 
     Input:
@@ -450,6 +455,7 @@ def Check_Chains(model_tupled, relationships, pairs, collisions_accepted, radius
      -Values = dictionary:
       -Keys = Chain name
       -Values = Chain object
+    -percent = minimum similarity percentage accepted
     Output:
     -possible_additions: list of tuples with the following format: (Chain_object,chain_name)
     """
@@ -464,7 +470,7 @@ def Check_Chains(model_tupled, relationships, pairs, collisions_accepted, radius
             interaction = element[0] + chain
             if not interaction in pairs:#if both orders dosn't exist
                 interaction = list(pair for pair in pairs if chain in pair and element[0] in pair)[0]
-            addition_tested = (Superimpose_Chain(model_tupled[0][element[1]], interaction, element[0], pairs, collisions_accepted, radius),chain)
+            addition_tested = (Superimpose_Chain(model_tupled[0][element[1]], interaction, element[0], pairs, collisions_accepted, radius, percent),chain)
             print(addition_tested)
             if addition_tested[0] != None:
                 possible_additions.append(addition_tested)
@@ -477,18 +483,19 @@ def Check_Chains(model_tupled, relationships, pairs, collisions_accepted, radius
         return possible_additions
 
 
-def Build_model(model_tupled, relationships, pairs, collisions_accepted = 0, radius = 7):
+def Build_model(model_tupled, relationships, pairs, collisions_accepted = 30, radius = 2, percent = 95):
     """Returns a list of tuples of all the possible models taking in account the given restrictions.
 
     Input:
     -model_tupled = Tuple with (model_object, (chain_name,chain_id), set(avaiable_names))
+    -percent = minimum similarity percentatge accepted between chains with same name
 
     """
 
     print("Build_model")
 
     finished_models = []
-    pieces_for_merge = Check_Chains(model_tupled, relationships, pairs, collisions_accepted, radius)
+    pieces_for_merge = Check_Chains(model_tupled, relationships, pairs, collisions_accepted, radius, percent)
     if pieces_for_merge == None:
         finished_models.append(model_tupled)
     else:
@@ -506,27 +513,44 @@ if __name__ == "__main__":
 
     print("Program start")
     settings.init()
-    folder = "../example_generator/proteasome_example_gen2"
 
-    try:
-        A = pickle.load(open("relationships.p","rb"))
-        B = pickle.load(open("pairs.p","rb"))
-    except:
-        onlyfiles = list(os.path.join(folder,f) for f in os.listdir(folder) if os.path.isfile(os.path.join(folder, f)))
-        A,B=Parse_List(onlyfiles)
-        out_fd = open("relationships.p","wb")
-        pickle.dump(A,out_fd)
-        out_fd.close()
-        out_fd = open("pairs.p","wb")
-        pickle.dump(B,out_fd)
-        out_fd.close()
+    unable_pickle = settings.options.pickle
+    folder_arg = settings.options.folder
+    verbose = settings.options.verbose
+    quiet = settings.options.quiet
+    initial_chain_arg = settings.options.initial
+    collisions_accepted_arg = settings.options.collisions
+    radius_arg = settings.options.radius
+    percent_arg = settings.options.similarity
+    pdb_list_arg = settings.options.pdb_list
+    output_arg = settings.options.output
 
-    print("files_parsed")
-    print(len(A.keys()))
+    if unable_pickle:
+        relation_pickle = os.path.join(folder_arg, "relationships.p")
+        pairs_pickle = os.path.join(folder_arg, "pairs.p")
+        try:
+            relationships = pickle.load(open(relation_pickle,"rb"))
+            pairs = pickle.load(open(pairs_pickle,"rb"))
+        except:
+            settings.argprint("No pickle aviable, generating a new one", verbose, quiet, 2)
+            onlyfiles = settings.Get_PdbList(folder_arg, pdb_list_arg)
+            relationships, pairs = Parse_List(onlyfiles)
+            out_fd = open(relation_pickle,"wb")
+            pickle.dump(relationships ,out_fd)
+            out_fd.close()
+            out_fd = open(pairs_pickle,"wb")
+            pickle.dump(pairs,out_fd)
+            out_fd.close()
+    else:
+        onlyfiles = settings.Get_PdbList(folder_arg, pdb_list_arg)
+        relationships, pairs = Parse_List(onlyfiles)
 
-    initial_model = Chose_Start(A,B,available_chain_names)
 
-    models = Build_model(initial_model, A, B, 30, 2.5)
+    settings.argprint("files_parsed", verbose, quiet, 0)
+    print("Number of chains detected: %s" %(len(relationships.keys())))
+
+    initial_model = Chose_Start(relationships, pairs, available_chain_names, initial_chain_arg)
+    models = Build_model(initial_model, relationships, pairs, collisions_accepted_arg, radius_arg, percent_arg)
 
     print("write pdb")
 
@@ -536,21 +560,7 @@ if __name__ == "__main__":
     io = pdb.PDBIO()
     i = 1
     for model in models:
+        filename = "%s_model_%s.pdb" %(os.path.basename(folder_arg),i)
         io.set_structure(model[0])
-        io.save("%s_model_%s.pdb" %(os.path.basename(folder),i))
+        io.save(os.path.join(output_arg, filename))
         i += 1
-
-
-
-    # print(B["XA"]["A"][1]["CA"].get_coord())
-
-    # print(Superimpose_Chain(B,"XA","X",B["XB"]["X"])[1]["CA"].get_coord())
-
-    # # print(Collision_Check(B["XA"]["X"],B["XB"]["X"],8))
-
-    # C = Join_Piece(B["XB"]["X"],B["XB"]["B"])
-
-    # for chain in C.get_parent():
-    #     print (chain)
-
-    # print(Chose_Start(A,B))

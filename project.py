@@ -115,7 +115,7 @@ def Get_Pairwise(m1, m2):#error handle different posible dictionaris
         align = pairwise2.align.globalxx(sequence_ref, sequence_sample)
         max_pair = max(align,key = lambda x:x[2])
         return max_pair
-    except UnboundLocalError:
+    except UnboundLocalError: #this error raises when the two compared chains are of diferent kind
         return None
 
 def Check_Similarity(chain1, chain2, percent = 95):
