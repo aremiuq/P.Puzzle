@@ -13,12 +13,19 @@ from project import Get_Pairwise
 from pdb_parser_training import *
 
 def Create_Example(pdb_file,folder):
+    """Parse pdb files into files containing individual pairwise interactions
+    Input:
+    -pdb_file = target pdb file 
+    -folder = target folder housing pdb files for parsing 
+    Output:
+    -parsed files containing individual pairwise interactions 
+    """
 
     pdb_parser = pdb.PDBParser(PERMISSIVE=True, QUIET=True)
     file_name = os.path.basename(pdb_file)
     print(file_name)
     pdb_structure = pdb_parser.get_structure(file_name, pdb_file)
-    print("parsed")
+    print("File(s) have been parsed.")
     chain_names = []
     Check_folder(folder)
     for model in pdb_structure:
@@ -46,7 +53,7 @@ def Create_Example(pdb_file,folder):
                     io.set_structure(new_model)
                     io.save(os.path.join(folder, "%s_%s.pdb" %(file_name, interaction)))
                 except:
-                    print("completed")
+                    print("Parsing complete!")
                     pass
 
 def Create_Example2(pdb_file, folder, percent = 95):
@@ -57,7 +64,7 @@ def Create_Example2(pdb_file, folder, percent = 95):
     file_name = os.path.basename(pdb_file)
     print(file_name)
     pdb_structure = pdb_parser.get_structure(file_name, pdb_file)
-    print("parsed")
+    print("File(s) have been parsed")
     chain_names = []
     Check_folder(folder)
     for model in pdb_structure:
@@ -117,5 +124,5 @@ def Create_Example2(pdb_file, folder, percent = 95):
                     print("error")
                     pass
 
-Create_Example2("../example_generator/nucleosome_3kuy.pdb","../example_generator/nucleosome_3kuy_gen2")
+Create_Example("../example_generator/nucleosome_3kuy.pdb","../example_generator/nucleosome_3kuy_gen2")
 

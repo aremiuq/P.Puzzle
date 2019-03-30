@@ -18,12 +18,15 @@ import settings
 class StructureAlignment (object):
     from Bio.Data import SCOPData
     def __init__(self, align, m1, m2):
-        """
-         Attributes:
-           - fasta_align - Alignment object
-           - m1, m2 - two models
-           - si, sj - the sequences in the Alignment object that
-             correspond to the structures
+        """Produces a structural alignment of two models
+
+        Input:
+        - fasta_align - Alignment object
+        - m1, m2 - two models
+        - si, sj - the sequences in the Alignment object that correspond to the structures
+        Output:
+        -newmap12,newmap21 = 
+
         """
         length = align[4]-align[3]
         # Get the residues in the models
@@ -73,9 +76,10 @@ class StructureAlignment (object):
         assert(aa1 == resname)
     def get_maps(self):
         """Map residues between the structures.
-
           Return two dictionaries that map a residue in one structure to
           the equivealent residue in the other structure.
+          Output:
+          map12, map21 = residue maps of structures 
           """
         return self.map12, self.map21
     def get_iterator(self):
@@ -85,11 +89,10 @@ class StructureAlignment (object):
 
     def without_nones (self):
         """Return the maps without the none values.
-
-        Input = map12, map21
-        output = new_map12, new_map21
-        here I want to remove all keys from both maps where the value = None
-        a filter is created to remove nones, the original maps are cleared, updated, and renamed
+        Input:
+        -map12, map21 = residue maps of structures 
+        output:
+        -new_map12, new_map21 = maps with "Nones" removed
         """
 
         #filter map 1
@@ -99,11 +102,11 @@ class StructureAlignment (object):
         return new_map12, new_map21
 
 def Get_Pairwise(m1, m2):#error handle different posible dictionaris
-    """
-    input = model1 and model2
-    output = pairwise alignment
-    first, build peptides and get sequence for model1 and model2
-    then, do a pairwise global alignment of both sequences
+    """Complete a pairwise global alignment of both model's sequence. 
+    Input
+    -model1, model2
+    Output:
+    max_pair = return pair of sequences with highest alignment score 
     """
 
     try:
@@ -119,16 +122,11 @@ def Get_Pairwise(m1, m2):#error handle different posible dictionaris
         return None
 
 def Check_Similarity(chain1, chain2, percent = 95):
-    """
-    input = chain1, chain2
-    output = dictionary with key of (residue_chain_1, residue_chain_2)
-    from these chains, we get the residues and residue names
-    first check and see if residue names between chains are equal
-        if equal then return output
-    second, if residue names between chains are not equal and if the tuple is not in dictionary
-        do pairwise align, structural align, and add to dictionary
-        return dictionary
-
+    """Checks similarity between two chains 
+    Input: 
+    -chain1, chain2 = chains to be checked 
+    Output:
+    -atom_list_1, atom_list_2 = atoms of the chains being checked 
     """
 
     residue_chain_1 = chain1.get_residues()
@@ -151,7 +149,7 @@ def Check_Similarity(chain1, chain2, percent = 95):
             try:
                 sim_percent = (align[2]/align[4]) * 100
             except TypeError as e:
-                print("Diferent kinds of chains compared")
+                print("Different kinds of chains compared")
                 return None
             if sim_percent <= percent:
                 print("%s% of similarity between %s and %s"%(sim_percent, chain1.get_id(), chain1.get_id()))
