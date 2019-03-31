@@ -1,3 +1,5 @@
+
+#settings.py imports
 import argparse
 import os
 import sys
@@ -24,13 +26,13 @@ print(options)
 print(options.initial)
 
 
-#Global variables
+#Global variable
 
-def init():
+def similarity_dict():
     global similarity
     similarity = {}
 
-#functions
+#settings.py functions
 
 def argprint(printable, verbose_level, quiet, print_level):
     """Prints in the STDERR, if the verbose_level is higer or equal to the print_level"""
@@ -46,9 +48,6 @@ def Get_PdbList(folder, pdb_list):
     else:
         onlyfiles = pdb_list
     return onlyfiles
-
-
-
 
 #Custom error classes
 
