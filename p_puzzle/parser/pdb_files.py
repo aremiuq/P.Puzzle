@@ -26,10 +26,10 @@ def Get_Chains(pdb_file,pairs):
 
     s.argprint(interaction, s.options.verbose, s.options.quiet, 1)
     if len(interaction) != 2:
-        s.argprint(settings.IncorrectName(interaction), s.options.verbose, s.options.quiet, 0)
+        s.argprint(s.IncorrectName(interaction), s.options.verbose, s.options.quiet, 0)
         exit()
     if interaction in pairs:
-        s.argprint(settings.RepeatedChain(interaction), s.options.verbose, s.options.quiet, 1)
+        s.argprint(s.RepeatedChain(interaction), s.options.verbose, s.options.quiet, 1)
 
     pair = {}
 

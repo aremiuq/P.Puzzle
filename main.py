@@ -1,6 +1,7 @@
 
 #main.py imports
 
+from p_puzzle.ex_generator.generators import *
 from p_puzzle.support import settings as s
 from p_puzzle.constructor.checker import *
 from p_puzzle.constructor.start import *
@@ -15,6 +16,8 @@ import os
 
 if __name__ == "__main__":
 
+
+
     unable_pickle = s.options.pickle
     folder_arg = s.options.folder
     verbose = s.options.verbose
@@ -28,6 +31,17 @@ if __name__ == "__main__":
     s.similarity_dict()
 
     s.argprint("P.Puzzle start", verbose, quiet, 0)
+
+    try:
+        level = s.options.exgen_level
+    except AttributeError:
+        level = False
+    if not level == False:
+        if level == 1:
+            Create_Example(s.options.pdb_file,output_arg)
+        elif level == 2:
+            Create_Example2(s.options.pdb_file,output_arg)
+        exit()
 
     available_chain_names = list(string.ascii_uppercase + string.ascii_lowercase + string.digits)
     available_chain_names.reverse()
@@ -70,7 +84,7 @@ if __name__ == "__main__":
     i = 1
     for model in models:
         print(folder_arg)
-        filename = "%s_model_%s.pdb" %(os.path.basename(folder_arg),i)
+        filename = "%s_model_%s.pdb" %(i, os.path.basename(folder_arg))
         io.set_structure(model[0])
         io.save(os.path.join(output_arg, filename))
         i += 1
