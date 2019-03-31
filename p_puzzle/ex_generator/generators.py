@@ -1,8 +1,7 @@
 
 #generators.py imports
-
-from p_puzzle.constructor.checker import *
-import p_puzzle.support.settings as s
+from ..constructor.checker import *
+from ..support import settings as s
 import Bio.PDB as pdb
 import copy as cp
 import os

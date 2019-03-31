@@ -2,7 +2,7 @@
 #core.py imports
 
 from ..support import settings as s
-from p_puzzle.constructor.checker import *
+from .checker import *
 import Bio.PDB as pdb
 import copy as cp
 import itertools
@@ -67,7 +67,7 @@ def Superimpose_Chain(reference, interaction, target, pairs, collisions_accepted
     collisions = Collision_Check(model_atom_list, addition_atom_list, radius)
 
     if len(collisions) > 0 :
-        s.argprint("Nº of collisions", s.options.verbose, s.options.quiet, 2)
+        s.argprint("Number of collisions:", s.options.verbose, s.options.quiet, 2)
         s.argprint(len(collisions), s.options.verbose, s.options.quiet, 2)
 
     if len(collisions) > collisions_accepted:
@@ -89,7 +89,7 @@ def Join_Piece(model,addition,available_chain_names):
     -available_chain_names = list of chain ids that are still available
     """
     character = available_chain_names.pop()
-    s.argprint("Model remaining aviable names:", s.options.verbose, s.options.quiet, 3)
+    s.argprint("Model remaining available names:", s.options.verbose, s.options.quiet, 3)
     s.argprint(len(available_chain_names), s.options.verbose, s.options.quiet, 3)
     addition.id = character
 
@@ -110,7 +110,7 @@ def Merge_chains(candidates, model_object, available_chain_names, collisions_acc
     """
 
     s.argprint("Merging Chains...", s.options.verbose, s.options.quiet, 1)
-    s.argprint("candidates for merge:", s.options.verbose, s.options.quiet, 2)
+    s.argprint("Candidates for merging:", s.options.verbose, s.options.quiet, 2)
     s.argprint(len(candidates), s.options.verbose, s.options.quiet, 2)
     s.argprint(candidates, s.options.verbose, s.options.quiet, 3)
 
@@ -124,7 +124,7 @@ def Merge_chains(candidates, model_object, available_chain_names, collisions_acc
         mobile_atom_list = list(candidates[second][0].get_atoms())
         collisions = Collision_Check(reference_atom_list, mobile_atom_list, radius)
         if len(collisions) > collisions_accepted:#extract the collition pair from the posible results
-            s.argprint("nº of collisions:", s.options.verbose, s.options.quiet, 2)
+            s.argprint("Number of collisions:", s.options.verbose, s.options.quiet, 2)
             s.argprint(len(collisions), s.options.verbose, s.options.quiet, 2)
 
             if len(collisions) >= len(reference_atom_list):#Remove the candidate if is equal

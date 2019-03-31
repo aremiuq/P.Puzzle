@@ -18,7 +18,7 @@ def Get_Chains(pdb_file,pairs):
      -Keys = Chain name (extracted from the file name)
      -Values = Chain object (corresponding to the chain name by order criteria in the file)
     """
-    pdb_parser = pdb.PDBParser(PERMISSIVE=True, QUIET=True)
+    pdb_parser = pdb.PDBParser(PERMISSIVE=s.options.strict, QUIET=True)
 
     interaction = pdb_file[:-4].split("_")[-1] # Obtain str with the interaction from the file name, the order of the letters need match with the order in the pdb file(format= something_chains.pdb)
     # interaction = pdb_file[:-4].split("/")[-1]

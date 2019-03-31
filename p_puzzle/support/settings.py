@@ -8,23 +8,23 @@ import sys
 
 main_parser = argparse.ArgumentParser(prog="P.Puzzle",description="Join your protein interaction pairs into a complex(s)",epilog="If you have any doubt, contact us.")
 input_grup = main_parser.add_mutually_exclusive_group(required=False)
-input_grup.add_argument("-f","--folder", default = ".", type = str, metavar = "FOLDER", help = "Folder path with the input PDB files.")
+input_grup.add_argument("-f","--folder", default = ".", type = str, metavar = "FOLDER", help = "Folder path with the input PDB files. Current folder is used as a default.)")
 input_grup.add_argument("-l","--list", type = str, dest = "pdb_list", metavar = "PDB", nargs = "*", help = "Input a list of PDB files instead of a folder.")
 info_grup = main_parser.add_mutually_exclusive_group(required=False)
 info_grup.add_argument("-v","--verbose", action = "count", default = 0, help = "Activate the verbose mode, add multiple times to increase the level to a maximum of 3.")
-info_grup.add_argument("-q","--quiet", action = "store_true", default = False, help = "Desactivate all the STDERR, STDOUT progress status.")
-main_parser.add_argument("-s","--strict", action = "store_false", default = True, help = "Disable the Permisive mode in the PDB parser.")
+info_grup.add_argument("-q","--quiet", action = "store_true", default = False, help = "Deactivate all the STDERR, STDOUT progress status.")
+main_parser.add_argument("-s","--strict", action = "store_false", default = True, help = "Disable the Permissive mode in the PDB parser.")
 main_parser.add_argument("-p","--pickle", action = "store_false", default = True, help = "Disable the pickle creation and usage.")
 main_parser.add_argument("-r","--radius", metavar = "RADIUS", type=int, default = 2, help = "Empty radius in Amstrongs around the atom that aren't considered in collision with another. Default value is 2.)" )
 main_parser.add_argument("-c","--collisions", type=int, metavar = "COLLISIONS_ACCEPTED", default = 30, help = "Maximum number of collisions accepted in each check. Default value is 30.")
 main_parser.add_argument("-%","--similarity", type=int, metavar = "SIMILARITY_%", choices=range(101), default = 95, help = "Percentage of similarity between sequences with the same name. If less than this percentage, the sequences are considered different. Default value is 95.")
-main_parser.add_argument("-o","--output", metavar = "OUTPUT", default = ".", type=str, help = "Introduce a path where the program will store the output model(s).")
+main_parser.add_argument("-o","--output", metavar = "OUTPUT", default = ".", type=str, help = "Introduce a path where the program will store the output model(s). Current folder is used as default.")
 main_parser.add_argument("-i","--initial", type=str, metavar = "INITIAL_CHAIN", help = "Insert manually an initial chain from where the program starts.")
 
 sub_parser = main_parser.add_subparsers(help = "sub-command help")
 exgen_parser = sub_parser.add_parser("exgen", help = "Example generator mode")
 exgen_parser.add_argument("pdb_file", type=str, metavar = "PDB_FILE", help = "PDB file for split in related pairs" )
-exgen_parser.add_argument("exgen_level", type=int, default = 1, choices=range(1,3), help = "1 = Split a pdb file in  related pairs giving to each chain a diferent name, 2 = Split a pdb file in  related pairs giving the same name to similar chains" )
+exgen_parser.add_argument("exgen_level", type=int, default = 1, choices=range(1,3), help = "1 = Split a pdb file into related pairs giving to each chain a diferent name, 2 = Split a pdb file into related pairs giving the same name to similar chains" )
 
 options = main_parser.parse_args()
 
