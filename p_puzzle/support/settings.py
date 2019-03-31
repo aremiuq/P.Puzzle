@@ -27,7 +27,6 @@ exgen_parser.add_argument("pdb_file", type=str, metavar = "PDB_FILE", help = "PD
 exgen_parser.add_argument("exgen_level", type=int, default = 1, choices=range(1,3), help = "1 = Split a pdb file in  related pairs giving to each chain a diferent name, 2 = Split a pdb file in  related pairs giving the same name to similar chains" )
 
 options = main_parser.parse_args()
-print(options)
 
 #Global variable
 
